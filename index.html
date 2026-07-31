@@ -492,8 +492,11 @@ footer .flogo{width:64px;height:64px;border-radius:50%;object-fit:cover;margin:0
         <h2 style="text-align:center">Military Financial Readiness Toolkit</h2>
         <p class="body" style="text-align:center;max-width:680px;margin:0 auto 24px">Twelve calculators spanning the military money lifecycle — pay &amp; BAH, budget, rent vs. buy, PCS, deployment, TSP/BRS, credit cards, civilian pay, VA disability, pension, where to retire — free, with 2026 rate data, right in your browser. Work through them and get your <b style="color:var(--ink)">Financial Readiness Score</b> on the Summary tab. Want the full report behind your score? That's $27, below.</p>
         <div style="border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 24px 56px -36px rgba(10,37,64,.4);background:#fff">
-          <iframe src="toolkit.html" title="Military Financial Readiness Toolkit" loading="lazy"
-                  style="width:100%;height:1300px;border:0;display:block"></iframe>
+          <!-- Auto-height: JS below sizes this frame to its content, so the
+               toolkit reads as part of the page — one scrollbar, no inner
+               window, tabs switch in place. -->
+          <iframe id="tk-iframe" src="toolkit.html" title="Military Financial Readiness Toolkit" loading="lazy"
+                  scrolling="no" style="width:100%;height:1300px;border:0;display:block"></iframe>
         </div>
       </div>
     </div>
@@ -936,6 +939,25 @@ mockForm('realtor-form', 'rf-note', f => '✓ Thanks, ' + ($('rf-name').value.tr
 mockForm('creator-form', 'cf-note', f => '✓ Got it, ' + ($('cf-name').value.trim() || 'there') + " — Garrett's team will reach out within two business days (mock).");
 mockForm('brand-form',   'bf-note', f => '✓ Pitch received from ' + ($('bf-co').value.trim() || 'your company') + ' — if it fits the roster, we\'ll be in touch (mock).');
 mockForm('notify-form',  'nf-note', f => '✓ You\'re on the list — founding-member pricing when the course drops (mock).');
+
+/* Toolkit iframe auto-height — same-origin, so we can read the inner
+   document's height and match it. The toolkit then behaves like normal
+   page content: no nested scrollbar, tabs grow/shrink the page. */
+(function(){
+  function fit(){
+    const f = $('tk-iframe');
+    if (!f) return;
+    try {
+      const d = f.contentDocument;
+      if (d && d.body){
+        const h = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight);
+        if (h > 400 && Math.abs(h - f.offsetHeight) > 8) f.style.height = h + 'px';
+      }
+    } catch(e){ /* cross-origin fallback: keep the fixed height */ }
+  }
+  setInterval(fit, 700);
+  const f = $('tk-iframe'); if (f) f.addEventListener('load', () => setTimeout(fit, 300));
+})();
 
 /* boot */
 route();
