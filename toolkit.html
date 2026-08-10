@@ -258,6 +258,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
   /* access-control UI — site design tokens only */
   .kap-gated{filter:blur(7px);pointer-events:none;user-select:none}
   .kap-hidden{display:none !important}
+  .kap-hide{display:none !important}
   .kap-lockdot{opacity:.75;margin-right:4px}
   .kap-accessbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:2px 2px 14px;padding:12px 16px;
     background:#fff;border:1px solid var(--line);border-radius:12px;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--muted)}
@@ -322,7 +323,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
       }catch(e){}
       return 'limited';
     },
-    grant: function(){ try{ localStorage.setItem(this._KEY,'full'); }catch(e){} applyAll(); },
+    grant: function(){ try{ localStorage.setItem(this._KEY,'full'); }catch(e){} applyAll(); try{ document.dispatchEvent(new CustomEvent('kap-access-change')); }catch(e){} },
     validate: function(code){ return this._CODES.indexOf(String(code||'').trim().toLowerCase()) !== -1; },
     tryUnlock: function(code, errEl){
       if (this.validate(code)) { this.grant(); return true; }
@@ -461,7 +462,7 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
         '<ul>' + FEATURES.map(function(f){ return '<li>'+f+'</li>'; }).join('') + '</ul>' +
         '<span class="price">$27</span><button type="button" class="kap-btn" id="kap-ov-buy">Get Full Access →</button>' +
         codeRow('kap-ov') +
-        '<p class="note">Access code arrives with purchase. Client-side unlock — for convenience, not bank-grade security.</p>';
+        '<p class="note">Your access code arrives with your $27 purchase — enter it above and everything unlocks instantly.</p>';
       fullCard.parentElement.insertBefore(ov, fullCard.nextElementSibling);
       document.getElementById('kap-ov-buy').onclick = goProducts;
       wireCode('kap-ov');
@@ -481,5 +482,423 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
 (function(){function fix(){document.querySelectorAll('a[href^="http"]').forEach(function(a){a.target="_blank";a.rel="noopener"});}
 new MutationObserver(fix).observe(document.getElementById('root'),{childList:true,subtree:true});fix();})();
 </script>
+
+<style id="kap-nav-css">
+  /* grouped dashboard navigation — replaces the app's 12-pill tab bar */
+  #root > div > nav{display:none !important}
+  #kap-nav-host{margin:2px 2px 16px;font-family:'Inter',sans-serif}
+  .kap-cats{display:flex;flex-wrap:wrap;gap:2px 22px;border-bottom:1px solid var(--line);margin-bottom:12px}
+  .kap-cat{font-family:'Oswald',sans-serif;font-size:.76rem;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;
+    color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;padding:10px 2px;cursor:pointer;transition:.2s;white-space:nowrap}
+  .kap-cat:hover{color:var(--navy)}
+  .kap-cat.on{color:var(--ink);border-bottom-color:var(--gold)}
+  .kap-tools{display:flex;flex-wrap:wrap;gap:8px}
+  .kap-tool{font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:600;letter-spacing:1.2px;text-transform:uppercase;
+    padding:9px 14px;border-radius:30px;border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:.2s;white-space:nowrap}
+  .kap-tool:hover{border-color:var(--navy);color:var(--navy)}
+  .kap-tool.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .kap-cat:focus-visible,.kap-tool:focus-visible{outline:2px solid rgba(200,162,74,.6);outline-offset:2px}
+  .kap-locksm{font-size:.78em;opacity:.65;margin-right:5px}
+  @media(max-width:640px){
+    .kap-cats{gap:0 16px}
+    .kap-cat{font-size:.68rem;padding:9px 1px}
+    .kap-tool{padding:8px 12px;font-size:.64rem}
+  }
+</style>
+<script id="kap-nav">
+/* Grouped navigation: 5 scannable categories over 12 tools, driven by the
+   same hash router the app already uses. Presentation-only — the app's own
+   nav is hidden, not removed, and every route stays reachable. */
+(function(){
+  'use strict';
+  var CATS = [
+    {label:'Essentials',        tools:[['/pay','Pay'],['/budget','Budget'],['/rent-vs-buy','Rent vs. Buy']]},
+    {label:'Career & Moves',    tools:[['/pcs','PCS'],['/deployment','Deployment'],['/civilian-pay','Civilian Pay']]},
+    {label:'Retirement',        tools:[['/tsp','TSP / BRS'],['/pension','Pension'],['/where-to-retire','Where to Retire']]},
+    {label:'Benefits & Credit', tools:[['/credit-cards','Credit Cards'],['/va-disability','VA Disability']]},
+    {label:'⭐ Summary',        tools:[['/summary','Summary']]}
+  ];
+  var PREMIUM = ['/pcs','/deployment','/tsp','/credit-cards','/civilian-pay','/va-disability','/pension','/where-to-retire'];
+  function route(){ return (location.hash||'#/pay').replace(/^#/,'').split('?')[0]; }
+  function limited(){ try{ return !(window.KapAccess && window.KapAccess.level()==='full'); }catch(e){ return true; } }
+  function isLocked(r){ return limited() && PREMIUM.indexOf(r)!==-1; }
+  function catFor(r){
+    for (var i=0;i<CATS.length;i++) for (var j=0;j<CATS[i].tools.length;j++) if (CATS[i].tools[j][0]===r) return CATS[i];
+    return CATS[0];
+  }
+  function lockHtml(r){ return isLocked(r) ? '<span class="kap-locksm" aria-label="premium">🔒</span>' : ''; }
+
+  function render(){
+    var orig = document.querySelector('#root > div > nav');
+    if (!orig) return;
+    var host = document.getElementById('kap-nav-host');
+    if (!host){ host = document.createElement('div'); host.id='kap-nav-host'; orig.parentElement.insertBefore(host, orig); }
+    var r = route(), active = catFor(r);
+    var cats = CATS.map(function(c){
+      var allLocked = limited() && c.tools.every(function(t){ return PREMIUM.indexOf(t[0])!==-1; });
+      return '<button type="button" class="kap-cat'+(c===active?' on':'')+'" data-cat="'+c.label+'" aria-selected="'+(c===active)+'">'+
+             (allLocked?'<span class="kap-locksm">🔒</span>':'')+c.label+'</button>';
+    }).join('');
+    var tools = active.tools.length>1
+      ? '<div class="kap-tools" role="tablist">'+active.tools.map(function(t){
+          return '<button type="button" class="kap-tool'+(t[0]===r?' on':'')+'" data-route="'+t[0]+'" aria-selected="'+(t[0]===r)+'">'+lockHtml(t[0])+t[1]+'</button>';
+        }).join('')+'</div>'
+      : '';
+    host.innerHTML = '<div class="kap-cats" role="tablist">'+cats+'</div>'+tools;
+    host.querySelectorAll('.kap-cat').forEach(function(b){
+      b.onclick = function(){
+        var c = CATS.filter(function(x){ return x.label===b.dataset.cat; })[0];
+        if (c.tools.map(function(t){return t[0];}).indexOf(route())===-1) location.hash = c.tools[0][0];
+        else render();
+      };
+    });
+    host.querySelectorAll('.kap-tool').forEach(function(b){
+      b.onclick = function(){ location.hash = b.dataset.route; };
+    });
+  }
+  window.addEventListener('hashchange', render);
+  document.addEventListener('kap-access-change', render);
+  new MutationObserver(function(){ if (!document.getElementById('kap-nav-host')) render(); })
+    .observe(document.getElementById('root'), {childList:true, subtree:true});
+  render();
+})();
+</script>
+<script id="kap-height">
+/* Height reporter: posts content height to the embedding page so the
+   frame can size itself in ANY context (same-origin or not). Fixes
+   clipped content (e.g. Credit Cards) wherever direct DOM reads fail. */
+(function(){
+  var last = 0;
+  function report(){
+    var h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    if (Math.abs(h-last) > 4){ last = h; try{ parent.postMessage({kapToolkitHeight:h}, '*'); }catch(e){} }
+  }
+  try{ new ResizeObserver(report).observe(document.body); }catch(e){}
+  new MutationObserver(report).observe(document.getElementById('root'), {childList:true, subtree:true});
+  window.addEventListener('load', report);
+  setInterval(report, 1200);
+})();
+</script>
+
+
+<style id="kap-report-css">
+  /* summary report sections — site tokens */
+  .kap-rep{font-family:'Inter',sans-serif;margin-top:20px}
+  .kap-rep-card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 56px -36px rgba(10,37,64,.4);padding:26px 28px;margin-bottom:18px}
+  .kap-rep-card > .kick{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+  .kap-snap{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px 22px}
+  .kap-snap div{border-bottom:1px dashed var(--line);padding:6px 0;font-size:.86rem;color:var(--muted);display:flex;justify-content:space-between;gap:10px}
+  .kap-snap b{color:var(--ink);font-variant-numeric:tabular-nums;text-align:right}
+  .kap-li{position:relative;padding:6px 0 6px 26px;font-size:.9rem;color:var(--ink)}
+  .kap-li:before{content:"\2713";position:absolute;left:2px;color:#16803c;font-weight:700}
+  .kap-li.warn:before{content:"!";color:#b3202c;font-family:'Oswald';font-size:1rem}
+  .kap-li small{display:block;color:var(--muted);font-size:.8rem}
+  .kap-act{border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:12px}
+  .kap-act .tier{font-family:'Oswald';font-size:.66rem;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+  .kap-act.high{border-left:4px solid #b3202c} .kap-act.high .tier{color:#b3202c}
+  .kap-act.rec{border-left:4px solid var(--gold)} .kap-act.rec .tier{color:#8a6d2a}
+  .kap-act.long{border-left:4px solid var(--navy)} .kap-act.long .tier{color:var(--navy)}
+  .kap-act h4{font-family:'Oswald';text-transform:uppercase;letter-spacing:.5px;font-size:.95rem;color:var(--ink);margin:0 0 6px}
+  .kap-act p{margin:0 0 4px;font-size:.85rem;color:var(--ink)}
+  .kap-act .why{color:var(--muted)}
+  .kap-act .src{font-size:.74rem;color:var(--muted)}
+  .kap-act .src a{color:var(--gold);text-decoration:none;font-weight:600}
+  body.kap-noprint main .no-print button[class*="bg-brand"]{display:none !important}
+  .kap-teaser{background:#fff;border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:10px;padding:16px 20px;margin:16px 0;font-family:'Inter',sans-serif;font-size:.92rem;color:var(--ink)}
+</style>
+<script id="kap-report">
+/* ================================================================
+   KAP SUMMARY ENGINE + REPORT
+   Data flow: tool inputs → persisted stores (mft.*) → snapshot()
+   → RULES engine → personalized strengths / concerns / action plan
+   → in-page report sections + standalone printable report.
+   Reads the app's own persisted state — no duplicate inputs, no
+   re-implementation of app calculations. Only sections with real
+   user data appear; no fake values.
+   ================================================================ */
+(function(){
+  'use strict';
+  var $$ = function(sel, root){ return [...(root||document).querySelectorAll(sel)]; };
+  function store(key){
+    try { var raw = localStorage.getItem(key); return raw ? (JSON.parse(raw).state || null) : null; } catch(e){ return null; }
+  }
+  function usd(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+  function full(){ try{ return window.KapAccess && window.KapAccess.level()==='full'; }catch(e){ return false; } }
+
+  /* ---------- snapshot: normalized view of everything the user entered ---------- */
+  function snapshot(){
+    var s = {};
+    var pay = store('mft.pay-calculator.v1');
+    if (pay) s.pay = { grade: pay.grade, yos: pay.yearsOfService, dependents: pay.hasDependents, state: pay.stateName, filing: pay.filingStatus };
+    var b = store('mft.budget.v1');
+    if (b && b.monthlyIncome){
+      var items = b.items || [];
+      var sum = function(g){ return items.filter(function(i){ return i.group===g; }).reduce(function(a,i){ return a + (+i.monthlyAmount||0); }, 0); };
+      var total = items.reduce(function(a,i){ return a + (+i.monthlyAmount||0); }, 0);
+      var emergency = (items.filter(function(i){ return i.id==='emergency'; })[0]||{}).monthlyAmount || 0;
+      s.budget = { income:+b.monthlyIncome, essentials:sum('essentials'), savings:sum('savings'), total:total,
+                   net:+b.monthlyIncome-total, emergencyMonthly:+emergency,
+                   savingsRate: b.monthlyIncome>0 ? sum('savings')/b.monthlyIncome : 0 };
+    }
+    var t = store('mft.tsp.v1');
+    if (t) s.tsp = { pct:+t.contributionPct, balance:+t.currentBalance, years:+t.yearsToRetirement };
+    var p = store('mft.pension.v1');
+    if (p) s.pension = { system:p.system, yos:+p.yearsOfService, high3:+p.high3MonthlyBasePay };
+    var pcs = store('mft.pcs.v1');
+    if (pcs) s.pcs = { grade:pcs.grade, miles:+pcs.officialMiles, vehicles:+pcs.numVehicles, dependents:pcs.hasDependents };
+    var d = store('mft.deployment.v1');
+    if (d) s.deploy = { sdpMonthly:+d.sdpMonthlyDeposit, sdpMonths:+d.sdpMonths, czMonths:+d.monthsInCombatZone, pay:+d.monthlyMilitaryPay };
+    var va = store('mft.va-disability.v1');
+    if (va && (va.ratings||[]).length) s.va = { ratings: va.ratings, count: va.ratings.length, spouse: va.hasSpouse };
+    var w = store('mft.where-to-retire.v1');
+    if (w) s.retire = { pension:+w.militaryPensionMonthly, va:+w.vaDisabilityMonthly, other:+w.otherIncomeMonthly };
+    var r = store('mft.rent-vs-buy.v2');
+    if (r) s.housing = { price:+r.homePrice, va: !!r.usingVaLoan, rent:+r.monthlyRent, debts:+(r.monthlyDebts||0) };
+    return s;
+  }
+
+  /* ---------- rules: structured, maintainable, data-conditioned ---------- */
+  var TOOL = { budget:['#/budget','Budget'], tsp:['#/tsp','TSP / BRS'], pcs:['#/pcs','PCS'], deploy:['#/deployment','Deployment'],
+               va:['#/va-disability','VA Disability'], pension:['#/pension','Pension'], retire:['#/where-to-retire','Where to Retire'],
+               housing:['#/rent-vs-buy','Rent vs. Buy'], pay:['#/pay','Pay'] };
+  var RULES = [
+    { id:'tsp-match', src:'tsp', pr:'high', when:function(s){ return s.tsp && s.tsp.pct>=0 && s.tsp.pct<5; },
+      title:'Capture your full BRS match',
+      why:function(s){ return 'You entered a '+s.tsp.pct+'% TSP contribution. The BRS match tops out at 5% — below that you are leaving matching dollars unclaimed every month.'; },
+      act:function(s){ return 'Raise your contribution from '+s.tsp.pct+'% to at least 5% to capture the full available match.'; } },
+    { id:'budget-deficit', src:'budget', pr:'high', when:function(s){ return s.budget && s.budget.net<0; },
+      title:'Close your monthly budget gap',
+      why:function(s){ return 'Your entered expenses exceed your income by '+usd(-s.budget.net)+' per month — that gap compounds into debt fast.'; },
+      act:function(s){ return 'Trim '+usd(-s.budget.net)+'/month, starting from non-essential categories in your budget.'; } },
+    { id:'emergency', src:'budget', pr:'high', when:function(s){ return s.budget && s.budget.emergencyMonthly<=0 && s.budget.net>=0; },
+      title:'Start your emergency fund',
+      why:function(s){ return 'Your budget shows no monthly emergency-fund contribution. Your essentials run '+usd(s.budget.essentials)+'/month — a 3–6 month cushion is '+usd(s.budget.essentials*3)+'–'+usd(s.budget.essentials*6)+'.'; },
+      act:function(s){ return 'Automate a monthly transfer toward a '+usd(s.budget.essentials*3)+' starter cushion.'; } },
+    { id:'savings-rate', src:'budget', pr:'rec', when:function(s){ return s.budget && s.budget.savingsRate>0 && s.budget.savingsRate<0.10; },
+      title:'Push your savings rate toward 10–15%',
+      why:function(s){ return 'You are saving about '+Math.round(s.budget.savingsRate*100)+'% of income. 10–15% is the range that builds real long-term wealth on a military paycheck.'; },
+      act:function(s){ return 'Increase automated savings by '+usd(Math.max(0, s.budget.income*0.10 - s.budget.savings))+'/month to reach 10%.'; } },
+    { id:'pcs-reserve', src:'pcs', pr:'rec', when:function(s){ return !!s.pcs; },
+      title:'Prepare for your PCS move',
+      why:function(s){ return 'You are planning a '+(s.pcs.miles? s.pcs.miles.toLocaleString()+'-mile ' : '')+'PCS'+(s.pcs.dependents?' with dependents':'')+'. Reimbursements lag expenses — cash buffers prevent the move going on a credit card.'; },
+      act:function(){ return 'Build a dedicated PCS cash reserve and review your DLA, MALT, and per-diem entitlements in the PCS tool before you move.'; } },
+    { id:'deploy-sdp', src:'deploy', pr:'rec', when:function(s){ return s.deploy && s.deploy.czMonths>0 && (s.deploy.sdpMonthly*Math.min(s.deploy.sdpMonths,s.deploy.czMonths) < 10000); },
+      title:'Maximize your SDP during deployment',
+      why:function(s){ return 'The Savings Deposit Program pays 10% guaranteed on up to $10,000 while deployed. Your entries put '+usd(s.deploy.sdpMonthly*Math.min(s.deploy.sdpMonths,s.deploy.czMonths))+' in — short of the cap.'; },
+      act:function(){ return 'Front-load SDP deposits toward the $10,000 cap as early in the deployment as cash flow allows.'; } },
+    { id:'deploy-prep', src:'deploy', pr:'rec', when:function(s){ return s.deploy && s.deploy.czMonths>0; },
+      title:'Run your pre-deployment financial checklist',
+      why:function(){ return 'Deployed months are the cheapest months of a career — CZTE makes pay tax-free and expenses drop.'; },
+      act:function(){ return 'Automate savings, review recurring charges, verify SGLI beneficiaries, and set up account access before you leave.'; } },
+    { id:'va-doc', src:'va', pr:'rec', when:function(s){ return !!s.va; },
+      title:'Document your VA disability claim early',
+      why:function(s){ return 'You entered '+s.va.count+' condition rating'+(s.va.count>1?'s':'')+'. Ratings depend on documentation — records gathered while serving are far easier than after separation.'; },
+      act:function(){ return 'Get every condition into your medical record now and keep copies; review your projected compensation in the VA Disability tool.'; } },
+    { id:'housing-va', src:'housing', pr:'rec', when:function(s){ return s.housing && s.housing.price>0 && !s.housing.va; },
+      title:'Price your purchase with a VA loan',
+      why:function(){ return 'Your Rent vs. Buy scenario is modeled without a VA loan. VA financing removes the down-payment barrier and PMI entirely.'; },
+      act:function(){ return 'Re-run the Rent vs. Buy tool with the VA loan option to see the zero-down math before deciding.'; } },
+    { id:'pension-model', src:'pension', pr:'long', when:function(s){ return !!s.pension; },
+      title:function(s){ return s.pension.yos>=15 ? 'Protect your pension runway' : 'Model your pension milestones'; },
+      why:function(s){ return 'At '+s.pension.yos+' years of service under '+(s.pension.system==='brs'?'BRS':'High-3')+', your pension math changes meaningfully with each year served past key gates.'; },
+      act:function(){ return 'Use the Pension tool to compare separation dates — small timeline shifts can change lifetime value dramatically.'; } },
+    { id:'retire-state', src:'retire', pr:'long', when:function(s){ return !!s.retire; },
+      title:'Pick your retirement state deliberately',
+      why:function(s){ return 'With '+usd((s.retire.pension||0)+(s.retire.va||0)+(s.retire.other||0))+'/month of projected retirement income entered, state tax treatment changes your effective income by thousands per year.'; },
+      act:function(){ return 'Shortlist 2–3 states in the Where to Retire tool and compare their military-retirement tax treatment side by side.'; } },
+    { id:'tsp-horizon', src:'tsp', pr:'long', when:function(s){ return s.tsp && s.tsp.years>=15 && s.tsp.pct>=5; },
+      title:'Let your TSP horizon work',
+      why:function(s){ return 'With '+s.tsp.years+' years to retirement and the match captured, contribution increases now compound the longest.'; },
+      act:function(){ return 'Step contributions up 1% each promotion or pay raise — you will not feel it, your balance will.'; } }
+  ];
+  var STRENGTHS = [
+    { when:function(s){ return s.tsp && s.tsp.pct>=5; }, text:function(s){ return 'Capturing your full BRS match — your '+s.tsp.pct+'% TSP contribution clears the 5% match threshold.'; } },
+    { when:function(s){ return s.budget && s.budget.net>0; }, text:function(s){ return 'Running a monthly surplus of '+usd(s.budget.net)+' — you spend less than you make.'; } },
+    { when:function(s){ return s.budget && s.budget.savingsRate>=0.15; }, text:function(s){ return 'Saving '+Math.round(s.budget.savingsRate*100)+'% of income — well above the 10–15% wealth-building range.'; } },
+    { when:function(s){ return s.budget && s.budget.emergencyMonthly>0; }, text:function(s){ return 'Funding your emergency cushion with '+usd(s.budget.emergencyMonthly)+'/month, automatically.'; } },
+    { when:function(s){ return s.housing && s.housing.va; }, text:function(){ return 'Using your VA loan benefit — zero down, no PMI, one of the strongest advantages you have earned.'; } },
+    { when:function(s){ return s.deploy && s.deploy.czMonths>0 && s.deploy.sdpMonthly*Math.min(s.deploy.sdpMonths,s.deploy.czMonths)>=10000; }, text:function(){ return 'Maxing the Savings Deposit Program — 10% guaranteed on the full $10,000 cap.'; } },
+    { when:function(s){ return s.pension && s.pension.yos>=15; }, text:function(s){ return s.pension.yos+' years toward your pension — the finish line math is on your side.'; } }
+  ];
+  var CAPS = { high:3, rec:4, long:3, total:8 };
+
+  function evaluate(s){
+    var out = { high:[], rec:[], long:[] }, total = 0;
+    RULES.forEach(function(r){
+      try {
+        if (total < CAPS.total && out[r.pr].length < CAPS[r.pr] && r.when(s)){
+          out[r.pr].push({ id:r.id, src:r.src, title: (typeof r.title==='function'? r.title(s) : r.title), why:r.why(s), act:r.act(s) });
+          total++;
+        }
+      } catch(e){}
+    });
+    out.total = total;
+    return out;
+  }
+  function strengths(s){
+    var out = [];
+    STRENGTHS.forEach(function(r){ try{ if (out.length<5 && r.when(s)) out.push(r.text(s)); }catch(e){} });
+    return out;
+  }
+  function readScore(){
+    var leaf = $$('main *').filter(function(e){ return e.children.length===0 && /^FINANCIAL READINESS$/i.test((e.textContent||'').trim()); })[0];
+    if (!leaf) return null;
+    var card = leaf.closest('section,div');
+    var m = (card ? card.textContent : '').match(/(\d{1,3})\s*\/\s*100\s*([A-Za-z ]{2,20})/);
+    return m ? { value:+m[1], label:m[2].trim() } : null;
+  }
+  function snapRows(s){
+    var rows = [];
+    if (s.pay) rows.push(['Pay grade', s.pay.grade], ['Years of service', s.pay.yos], ['Duty state', s.pay.state||'—']);
+    if (s.budget) rows.push(['Monthly income', usd(s.budget.income)], ['Essential expenses', usd(s.budget.essentials)+'/mo'], ['Monthly surplus', (s.budget.net<0?'−':'')+usd(Math.abs(s.budget.net))]);
+    if (s.tsp) rows.push(['TSP contribution', s.tsp.pct+'%'], ['TSP balance', usd(s.tsp.balance)]);
+    if (s.pension) rows.push(['Retirement system', s.pension.system==='brs'?'BRS':'High-3'], ['Pension years', s.pension.yos]);
+    if (s.deploy && s.deploy.czMonths>0) rows.push(['Combat-zone months', s.deploy.czMonths]);
+    if (s.pcs) rows.push(['PCS planned', s.pcs.miles ? s.pcs.miles.toLocaleString()+' miles' : 'Yes']);
+    if (s.va) rows.push(['VA conditions entered', s.va.count]);
+    if (s.housing) rows.push(['Housing scenario', s.housing.va ? 'Buying (VA loan)' : (s.housing.price>0?'Buying (conventional)':'Renting')]);
+    if (s.retire) rows.push(['Projected retirement income', usd((s.retire.pension||0)+(s.retire.va||0)+(s.retire.other||0))+'/mo']);
+    return rows;
+  }
+  var TIERS = [['high','🔴 High Priority'],['rec','🟡 Recommended'],['long','🟢 Long-Term']];
+
+  /* ---------- in-page summary report ---------- */
+  function anchorCard(){
+    var leaf = $$('main *').filter(function(e){ return e.children.length===0 && /^FINANCIAL READINESS$/i.test((e.textContent||'').trim()); })[0];
+    if (!leaf) return null;
+    var el = leaf, tips = $$('main *').filter(function(e){ return e.children.length===0 && /^TIPS TO IMPROVE$/i.test((e.textContent||'').trim()); })[0];
+    while (el.parentElement && !(tips && el.contains(tips))) el = el.parentElement;
+    return el;
+  }
+  function render(){
+    var onSummary = (location.hash||'').indexOf('#/summary')===0 || (location.hash||'').replace('#','').indexOf('/summary')===0;
+    document.body.classList.toggle('kap-noprint', !!onSummary);
+    var box = document.getElementById('kap-rep'), tz = document.getElementById('kap-teaser');
+    if (!onSummary){ if (box) box.remove(); if (tz) tz.remove(); return; }
+    var s = snapshot(), plan = evaluate(s), sts = strengths(s), card = anchorCard();
+    if (!card) return;
+    var sig = JSON.stringify([full(), plan, sts, snapRows(s)]);
+    if (!full()){
+      if (box) box.remove();
+      if (plan.total > 0){
+        if (!tz){ tz = document.createElement('div'); tz.id='kap-teaser'; tz.className='kap-teaser';
+          card.parentElement.insertBefore(tz, card.nextElementSibling); }
+        tz.innerHTML = 'Based on what you’ve entered, <b>'+plan.total+' area'+(plan.total>1?'s':'')+' could improve your financial position</b> — plus '+
+          (sts.length||'your')+' strength'+(sts.length===1?'':'s')+' worth protecting. 🔒 Your personalized action plan is part of Full Access.';
+      } else if (tz) tz.remove();
+      return;
+    }
+    if (tz) tz.remove();
+    /* always retire the app's raw print button in favor of the report (re-renders included) */
+    $$('main button').forEach(function(b){ if (/print/i.test(b.textContent) && b.id!=='kap-print') b.classList.add('kap-hide'); });
+    if (box && box.dataset.sig === sig) return;
+    if (box) box.remove();
+    box = document.createElement('div'); box.id='kap-rep'; box.className='kap-rep'; box.dataset.sig = sig;
+    var html = '';
+    var rows = snapRows(s);
+    if (rows.length){
+      html += '<div class="kap-rep-card"><div class="kick">FINANCIAL SNAPSHOT — WHAT YOU TOLD US</div><div class="kap-snap">' +
+        rows.map(function(r){ return '<div><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'; }).join('') + '</div></div>';
+    }
+    if (sts.length){
+      html += '<div class="kap-rep-card"><div class="kick">WHAT YOU’RE DOING WELL</div>' +
+        sts.map(function(t){ return '<div class="kap-li">'+t+'</div>'; }).join('') + '</div>';
+    }
+    var concerns = plan.high.concat(plan.rec);
+    if (concerns.length){
+      html += '<div class="kap-rep-card"><div class="kick">AREAS THAT NEED ATTENTION</div>' +
+        concerns.map(function(a){ return '<div class="kap-li warn">'+a.title+'<small>'+a.why+'</small></div>'; }).join('') + '</div>';
+    }
+    if (plan.total){
+      html += '<div class="kap-rep-card"><div class="kick">YOUR ACTION PLAN — THE '+plan.total+' THINGS THAT MATTER MOST</div>';
+      TIERS.forEach(function(t){
+        plan[t[0]].forEach(function(a){
+          var tool = TOOL[a.src];
+          html += '<div class="kap-act '+t[0]+'"><div class="tier">'+t[1]+'</div><h4>'+a.title+'</h4>' +
+            '<p>'+a.act+'</p><p class="why">'+a.why+'</p>' +
+            '<p class="src">From your <a href="'+tool[0]+'">'+tool[1]+'</a> entries</p></div>';
+        });
+      });
+      html += '</div>';
+    }
+    html += '<div style="text-align:center;margin:6px 0 10px"><button type="button" class="kap-btn" id="kap-print">🖨 Print / Save My Financial Plan</button></div>';
+    box.innerHTML = html;
+    card.parentElement.insertBefore(box, card.nextElementSibling);
+    document.getElementById('kap-print').onclick = printReport;
+    /* our report supersedes the app's raw print button */
+    $$('main button').forEach(function(b){ if (/print/i.test(b.textContent) && b.id!=='kap-print') b.classList.add('kap-hide'); });
+  }
+
+  /* ---------- standalone printable report (built from data, not DOM) ---------- */
+  function printReport(){
+    var s = snapshot(), plan = evaluate(s), sts = strengths(s), score = readScore();
+    var nameInput = $$('main input[type=text]').filter(function(i){ return /name/i.test(i.placeholder||'') || /jane|name/i.test(i.getAttribute('aria-label')||''); })[0];
+    var name = (nameInput && nameInput.value.trim()) || '';
+    var today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+    var interp = score ? (score.value>=80 ? 'You are in strong financial shape — protect it and optimize.' :
+                  score.value>=60 ? 'A solid base with clear opportunities — the action plan below is your fastest path up.' :
+                  'Your finances need attention — start with the high-priority items below.') : '';
+    var rows = snapRows(s);
+    var css = '@page{margin:18mm 16mm} body{font-family:Georgia,\'Times New Roman\',serif;color:#1a2331;line-height:1.55;font-size:11pt;margin:0}' +
+      'h1,h2,h3{font-family:Arial,Helvetica,sans-serif;text-transform:uppercase;letter-spacing:.06em;color:#0a2540}' +
+      '.hd{border-bottom:3px solid #c8a24a;padding-bottom:10px;margin-bottom:22px}.hd h1{font-size:19pt;margin:0}.hd .sub{color:#5c6a7d;font-size:9.5pt}' +
+      'h2{font-size:12pt;border-bottom:1px solid #e2e6ec;padding-bottom:4px;margin:24px 0 10px;page-break-after:avoid}' +
+      '.score{font-family:Arial;font-size:34pt;font-weight:bold;color:#0a2540}.score small{font-size:12pt;color:#5c6a7d}' +
+      'table{width:100%;border-collapse:collapse;font-size:10pt}td{padding:5px 8px;border-bottom:1px solid #eef1f5}td:last-child{text-align:right;font-weight:bold}' +
+      '.item{page-break-inside:avoid;margin:0 0 12px;padding:10px 14px;border-left:3px solid #c8a24a;background:#fafbfc}' +
+      '.item.high{border-left-color:#b3202c}.item.long{border-left-color:#0a2540}' +
+      '.item h3{font-size:10.5pt;margin:0 0 4px}.item .tier{font-family:Arial;font-size:8pt;letter-spacing:.1em;color:#8a6d2a}' +
+      '.item.high .tier{color:#b3202c}.item.long .tier{color:#0a2540}.item p{margin:2px 0;font-size:10pt}.item .why{color:#5c6a7d}' +
+      'ul{margin:6px 0;padding-left:18px}li{margin-bottom:5px;page-break-inside:avoid}' +
+      '.ft{margin-top:28px;border-top:1px solid #e2e6ec;padding-top:8px;font-size:8pt;color:#8a94a3}';
+    var h = '<div class="hd"><h1>Military Financial Assessment</h1><div class="sub">' +
+      (name ? 'Prepared for ' + name + ' · ' : '') + today + ' · CAPTAIN KAP — Military Financial Readiness Toolkit</div></div>';
+    if (score) h += '<h2>Overall Financial Score</h2><div class="score">' + score.value + '<small> /100 · ' + score.label + '</small></div><p>' + interp + '</p>';
+    if (rows.length) h += '<h2>Financial Snapshot</h2><table>' + rows.map(function(r){ return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>'; }).join('') + '</table>';
+    if (sts.length) h += '<h2>Strengths</h2><ul>' + sts.map(function(t){ return '<li>'+t+'</li>'; }).join('') + '</ul>';
+    var concerns = plan.high.concat(plan.rec);
+    if (concerns.length) h += '<h2>Areas Requiring Attention</h2><ul>' + concerns.map(function(a){ return '<li><b>'+a.title+'.</b> '+a.why+'</li>'; }).join('') + '</ul>';
+    if (plan.total){
+      h += '<h2>Recommended Action Plan</h2>';
+      TIERS.forEach(function(t){
+        plan[t[0]].forEach(function(a){
+          h += '<div class="item '+t[0]+'"><div class="tier">'+t[1].replace(/^..\s/,'').toUpperCase()+'</div><h3>'+a.title+'</h3>' +
+               '<p>'+a.act+'</p><p class="why">'+a.why+' <i>(From your '+TOOL[a.src][1]+' entries.)</i></p></div>';
+        });
+      });
+    }
+    /* detailed results per tool — only where data exists */
+    var det = '';
+    if (s.budget) det += '<h3 style="font-size:10.5pt">Budget</h3><table><tr><td>Monthly income</td><td>'+usd(s.budget.income)+'</td></tr><tr><td>Essentials</td><td>'+usd(s.budget.essentials)+'</td></tr><tr><td>Savings</td><td>'+usd(s.budget.savings)+'</td></tr><tr><td>Surplus / deficit</td><td>'+(s.budget.net<0?'−':'')+usd(Math.abs(s.budget.net))+'</td></tr></table>';
+    if (s.tsp) det += '<h3 style="font-size:10.5pt">TSP / BRS</h3><table><tr><td>Contribution</td><td>'+s.tsp.pct+'%</td></tr><tr><td>Balance</td><td>'+usd(s.tsp.balance)+'</td></tr><tr><td>Years to retirement</td><td>'+s.tsp.years+'</td></tr></table>';
+    if (s.pension) det += '<h3 style="font-size:10.5pt">Pension</h3><table><tr><td>System</td><td>'+(s.pension.system==='brs'?'BRS':'High-3')+'</td></tr><tr><td>Years of service</td><td>'+s.pension.yos+'</td></tr></table>';
+    if (s.deploy && s.deploy.czMonths>0) det += '<h3 style="font-size:10.5pt">Deployment</h3><table><tr><td>Combat-zone months</td><td>'+s.deploy.czMonths+'</td></tr><tr><td>SDP monthly deposit</td><td>'+usd(s.deploy.sdpMonthly)+'</td></tr></table>';
+    if (s.va) det += '<h3 style="font-size:10.5pt">VA Disability</h3><table><tr><td>Conditions entered</td><td>'+s.va.count+'</td></tr></table>';
+    if (s.retire) det += '<h3 style="font-size:10.5pt">Retirement Income</h3><table><tr><td>Pension</td><td>'+usd(s.retire.pension)+'/mo</td></tr><tr><td>VA disability</td><td>'+usd(s.retire.va)+'/mo</td></tr><tr><td>Other</td><td>'+usd(s.retire.other)+'/mo</td></tr></table>';
+    if (det) h += '<h2>Detailed Results</h2>' + det;
+    h += '<div class="ft">Estimates only — not financial, tax, or investment advice, and not affiliated with the DoD, DFAS, or VA. Rates effective 2026-01-01. Generated by the Captain Kap Military Financial Readiness Toolkit.</div>';
+    var w = window.open('', '_blank');
+    if (!w){ alert('Please allow pop-ups to print your report.'); return; }
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Military Financial Assessment' + (name? ' — '+name : '') + '</title><style>'+css+'</style></head><body>'+h+'</body></html>');
+    w.document.close();
+    w.focus();
+    setTimeout(function(){ try{ w.print(); }catch(e){} }, 400);
+  }
+
+  var t; function later(){ clearTimeout(t); t = setTimeout(render, 350); }
+  window.addEventListener('hashchange', later);
+  document.addEventListener('kap-access-change', later);
+  new MutationObserver(function(muts){
+    for (var i=0;i<muts.length;i++){
+      var el = muts[i].target;
+      if (el.closest && (el.closest('#kap-rep') || el.closest('#kap-teaser'))) return;  /* ignore our own writes */
+    }
+    later();
+  }).observe(document.getElementById('root'), {childList:true, subtree:true});
+  setInterval(function(){ if ((location.hash||'').indexOf('/summary')>=0) render(); }, 2000);
+  later();
+})();
+</script>
+
 </body>
 </html>

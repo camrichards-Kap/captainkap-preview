@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Captain Kap — Discipline Into Wealth</title>
 <link rel="icon" href="assets/captain-kap-logo.jpg">
+<!-- Social link previews (Instagram bio, DMs, texts) -->
+<meta property="og:title" content="Captain Kap — Military Money, Mastered">
+<meta property="og:description" content="Free military financial toolkit from Garrett Kauppila: pay & BAH, budget, rent vs. buy — plus your Financial Readiness Score. Built for those who serve.">
+<meta property="og:image" content="assets/garrett-headshot.jpg">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="description" content="Garrett Kauppila — Captain Kap. Military-trained operator and CEO of Ashton Hall Enterprise. Creator finance, military money coaching, real estate, and giving.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1206,23 +1212,40 @@ mockForm('creator-form', 'cf-note', f => '✓ Got it, ' + ($('cf-name').value.tr
 mockForm('brand-form',   'bf-note', f => '✓ Pitch received from ' + ($('bf-co').value.trim() || 'your company') + ' — if it fits the roster, we\'ll be in touch (mock).');
 mockForm('notify-form',  'nf-note', f => '✓ You\'re on the list — founding-member pricing when the course drops (mock).');
 
-/* Toolkit iframe auto-height — same-origin, so we can read the inner
-   document's height and match it. The toolkit then behaves like normal
-   page content: no nested scrollbar, tabs grow/shrink the page. */
+/* Toolkit iframe auto-height. Primary channel: the toolkit posts its
+   content height via postMessage (kap-height script inside it), which
+   works in EVERY embedding context — same-origin, cross-origin previews,
+   anywhere. This is what prevents content (e.g. Credit Cards) from being
+   clipped at the frame's initial height. Same-origin direct reads remain
+   as a fast-path fallback. */
 (function(){
+  function setH(h){
+    const f = $('tk-iframe');
+    if (f && h > 400 && Math.abs(h - f.offsetHeight) > 8) f.style.height = h + 'px';
+  }
+  window.addEventListener('message', e => {
+    if (e.data && typeof e.data.kapToolkitHeight === 'number') setH(e.data.kapToolkitHeight);
+  });
   function fit(){
     const f = $('tk-iframe');
     if (!f) return;
     try {
       const d = f.contentDocument;
-      if (d && d.body){
-        const h = Math.max(d.documentElement.scrollHeight, d.body.scrollHeight);
-        if (h > 400 && Math.abs(h - f.offsetHeight) > 8) f.style.height = h + 'px';
-      }
-    } catch(e){ /* cross-origin fallback: keep the fixed height */ }
+      if (d && d.body) setH(Math.max(d.documentElement.scrollHeight, d.body.scrollHeight));
+    } catch(e){ /* cross-origin: postMessage channel handles it */ }
   }
-  setInterval(fit, 700);
+  setInterval(fit, 900);
   const f = $('tk-iframe'); if (f) f.addEventListener('load', () => setTimeout(fit, 300));
+  /* last-resort: if no height signal arrives at all (ancient browser,
+     blocked messaging), un-freeze the frame so nothing is ever clipped */
+  let gotSignal = false;
+  window.addEventListener('message', e => { if (e.data && e.data.kapToolkitHeight) gotSignal = true; });
+  setTimeout(() => {
+    const fr = $('tk-iframe');
+    if (!fr || gotSignal) return;
+    try { if (fr.contentDocument) return; } catch(e){}
+    fr.removeAttribute('scrolling'); fr.style.height = '1400px';
+  }, 6000);
 })();
 
 /* boot */
