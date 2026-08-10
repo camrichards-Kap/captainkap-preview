@@ -255,104 +255,222 @@ In order to be iterable, non-array objects must have a [Symbol.iterator]() metho
 </script>
   
 <style id="kap-gate-css">
+  /* access-control UI — site design tokens only */
   .kap-gated{filter:blur(7px);pointer-events:none;user-select:none}
-  .kap-hide{display:none!important}
-  .kap-overlay{margin:18px 0;border:2px solid #c8a24a;border-radius:14px;background:linear-gradient(135deg,#0e2c4d,#071a30);color:#fff;padding:30px;text-align:center;font-family:Inter,ui-sans-serif,system-ui,sans-serif}
-  .kap-overlay h3{font-family:Oswald,Inter,sans-serif;letter-spacing:1.5px;text-transform:uppercase;color:#c8a24a;font-size:1.25rem;margin:0 0 10px}
-  .kap-overlay p{color:rgba(255,255,255,.85);font-size:.92rem;max-width:520px;margin:0 auto 8px}
-  .kap-overlay ul{list-style:none;padding:0;margin:14px auto;max-width:460px;text-align:left}
-  .kap-overlay li{padding:4px 0 4px 24px;position:relative;font-size:.9rem;color:rgba(255,255,255,.9)}
-  .kap-overlay li:before{content:"\2605";position:absolute;left:0;color:#c8a24a}
-  .kap-btn{display:inline-block;background:#c8a24a;color:#071a30;font-family:Oswald,sans-serif;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;font-size:.85rem;padding:13px 30px;border-radius:4px;border:0;cursor:pointer;margin-top:6px}
-  .kap-btn:hover{background:#dcc178}
-  .kap-code{margin-top:16px;font-size:.8rem;color:rgba(255,255,255,.6)}
-  .kap-code input{padding:8px 10px;border-radius:4px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.08);color:#fff;font:inherit;margin:0 6px}
-  .kap-note{font-size:.72rem;color:rgba(255,255,255,.45);margin-top:12px}
-  .kap-bar{position:fixed;bottom:16px;right:16px;z-index:9999;background:#0e2c4d;border:1px solid #c8a24a;color:#fff;border-radius:40px;padding:10px 18px;font-family:Inter,sans-serif;font-size:.82rem;display:flex;gap:12px;align-items:center;box-shadow:0 12px 30px rgba(0,0,0,.35)}
-  .kap-bar a{color:#c8a24a;font-weight:600;text-decoration:none}
-  .kap-bar button{background:none;border:0;color:rgba(255,255,255,.5);cursor:pointer;font-size:1rem;padding:0}
-  @media print{.kap-gated,.kap-overlay,.kap-bar{display:none!important}}
+  .kap-hidden{display:none !important}
+  .kap-lockdot{opacity:.75;margin-right:4px}
+  .kap-accessbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:2px 2px 14px;padding:12px 16px;
+    background:#fff;border:1px solid var(--line);border-radius:12px;font-family:'Inter',sans-serif;font-size:.85rem;color:var(--muted)}
+  .kap-accessbar b{color:var(--ink);font-weight:600}
+  .kap-accessbar input{padding:8px 12px;border:1px solid var(--line);border-radius:6px;font:inherit;min-width:150px}
+  .kap-accessbar input:focus-visible{outline:2px solid rgba(200,162,74,.6);outline-offset:1px;border-color:var(--gold)}
+  .kap-btn{display:inline-block;background:var(--gold);color:var(--navy-deep);font-family:'Oswald',sans-serif;font-weight:600;
+    letter-spacing:1.2px;text-transform:uppercase;font-size:.78rem;padding:10px 20px;border-radius:4px;border:0;cursor:pointer}
+  .kap-btn:hover{background:var(--gold-soft)}
+  .kap-btn.navy{background:none;border:2px solid var(--navy);color:var(--navy);padding:8px 18px}
+  .kap-btn.navy:hover{background:var(--navy);color:#fff}
+  .kap-err{color:#b3202c;font-size:.78rem;font-weight:600;min-height:1em;width:100%}
+  .kap-fullbadge{display:inline-flex;align-items:center;gap:8px;background:rgba(200,162,74,.12);border:1px solid var(--gold);
+    color:var(--ink);border-radius:30px;padding:8px 16px;font-family:'Oswald',sans-serif;font-size:.74rem;letter-spacing:1.2px;text-transform:uppercase}
+  .kap-fullbadge b{color:var(--gold)}
+  .kap-premium{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 56px -36px rgba(10,37,64,.4);
+    padding:34px 30px;font-family:'Inter',sans-serif;margin-bottom:20px}
+  .kap-premium .kick{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+  .kap-premium h2{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--ink);font-size:1.4rem;margin:0 0 8px}
+  .kap-premium .what{color:var(--ink);font-size:.95rem;margin:0 0 6px}
+  .kap-premium .why{color:var(--muted);font-size:.88rem;margin:0 0 18px}
+  .kap-premium .divider{border-top:1px dashed var(--line);margin:18px 0}
+  .kap-premium ul{list-style:none;padding:0;margin:0 0 16px;columns:2;gap:24px}
+  .kap-premium li{padding:3px 0 3px 22px;position:relative;font-size:.85rem;color:var(--ink);break-inside:avoid}
+  .kap-premium li:before{content:"\2713";position:absolute;left:0;color:var(--gold);font-weight:700}
+  .kap-premium .price{font-family:'Oswald',sans-serif;font-size:1.5rem;color:var(--gold);margin-right:14px;vertical-align:middle}
+  .kap-premium .note{font-size:.75rem;color:var(--muted);margin-top:14px}
+  .kap-premium .codewrap{margin-top:16px;font-size:.8rem;color:var(--muted)}
+  .kap-premium .codewrap input{padding:8px 12px;border:1px solid var(--line);border-radius:6px;font:inherit;margin:0 8px 0 6px}
+  @media(max-width:640px){.kap-premium ul{columns:1}.kap-premium{padding:24px 18px}}
+  @media print{.kap-gated,.kap-premium,.kap-accessbar{display:none !important}}
 </style>
 <script id="kap-gate">
-/* ============================================================
-   CAPTAIN KAP — SUMMARY PAYWALL (client-side gate, v1)
-   Free tier: every calculator + your Financial Readiness SCORE.
-   $27 tier : full summary (tips, fixes, all data) + print.
-   Unlock   : access code (localStorage) — swap for real license
-   delivery via Stripe/GHL webhook at launch. NOTE: client-side
-   gating deters casual users only; move to real auth when the
-   toolkit gets its own backend.
-   ============================================================ */
+/* ================================================================
+   KAP ACCESS LAYER — product access control for the toolkit.
+   ----------------------------------------------------------------
+   ARCHITECTURE
+   • KapAccess is the SINGLE SOURCE OF TRUTH: level() → 'limited'|'full'.
+     Every gate below asks KapAccess — no scattered booleans.
+   • The credential lives in ONE place (KapAccess.validate). Today it
+     checks a hard-coded code; to move to real purchase verification,
+     replace validate() with an API call and grant() on success —
+     nothing else in this file (or the site) needs to change.
+   • This is a product-access/UX gate, NOT security: it runs client-
+     side and deters casual users only. Do not represent it as
+     payment verification.
+   • Presentation-only: calculations, state, and routing in the
+     compiled app are untouched. Locked tools stay mounted but
+     visually replaced by a premium preview panel.
+   ================================================================ */
 (function(){
-  var KEY='kap_full_access', CODE='KAP27';
-  function unlocked(){ try{ return localStorage.getItem(KEY)==='1'; }catch(e){ return false; } }
-  function setUnlocked(){ try{ localStorage.setItem(KEY,'1'); }catch(e){} }
-  try{ var m=(location.search||'').match(/[?&]code=([^&]+)/); if(m && m[1].toUpperCase()===CODE) setUnlocked(); }catch(e){}
+  'use strict';
 
+  /* ---------------- access core (the ONE place) ---------------- */
+  var KapAccess = {
+    _KEY: 'kap_access_level',
+    _CODES: ['financiallyfree'],            /* ← swap point: replace with server-side entitlement check */
+    level: function(){
+      try{
+        if (localStorage.getItem(this._KEY) === 'full') return 'full';
+        if (localStorage.getItem('kap_full_access') === '1') return 'full';  /* legacy key migration */
+      }catch(e){}
+      return 'limited';
+    },
+    grant: function(){ try{ localStorage.setItem(this._KEY,'full'); }catch(e){} applyAll(); },
+    validate: function(code){ return this._CODES.indexOf(String(code||'').trim().toLowerCase()) !== -1; },
+    tryUnlock: function(code, errEl){
+      if (this.validate(code)) { this.grant(); return true; }
+      if (errEl) errEl.textContent = 'Invalid access code. Please check your code and try again.';
+      return false;
+    }
+  };
+  window.KapAccess = KapAccess;             /* exposed for future wiring */
+
+  /* ---------------- premium catalog (config, not hacks) ---------------- */
+  var PREMIUM = {
+    '/pcs':            { name:'PCS Move Planner', what:'DLA, MALT, per-diem, and out-of-pocket estimates for your next PCS move.', why:'Know what the military owes you before you move — most families leave entitlements unclaimed.' },
+    '/deployment':     { name:'Deployment Wealth Builder', what:'SDP returns and CZTE tax-free savings modeling for your deployment.', why:'One deployment can jump-start your net worth — if the money is positioned right.' },
+    '/tsp':            { name:'TSP / BRS Optimizer', what:'Model contributions, match capture, and long-term growth under the Blended Retirement System.', why:'The match is free money — see exactly what capturing it is worth over a career.' },
+    '/credit-cards':   { name:'Military Credit Card Benefits', what:'Compare premium cards with SCRA/MLA annual-fee waivers for service members.', why:'Fee waivers on active duty can mean hundreds of dollars in perks every year.', note:'This tool is included in Full Access ($27). Looking for the advanced Credit Card Hacking playbook? That’s our separate $47 product on this page.' },
+    '/civilian-pay':   { name:'Military → Civilian Pay', what:'Translate your full military compensation into the civilian salary you’d actually need.', why:'BAH and BAS are tax-free — most people underestimate their real pay by 20%+.' },
+    '/va-disability':  { name:'VA Disability Calculator', what:'2026 VA disability compensation by rating and dependents.', why:'Understand the tax-free benefit picture before you file.' },
+    '/pension':        { name:'Pension Projector', what:'Project your High-3 or BRS pension across retirement scenarios.', why:'See what 20 years of service is actually worth in lifetime dollars.' },
+    '/where-to-retire':{ name:'Where to Retire', what:'Compare states on military-retirement taxes and cost of living.', why:'The same pension goes 30% further in the right state.' }
+  };
+  var FEATURES = ['PCS planning','Deployment (SDP + CZTE)','TSP / BRS analysis','Credit card benefits','Civilian pay translation','VA disability','Pension planning','Where to retire','Detailed financial summary'];
+
+  function route(){ return (location.hash || '#/pay').replace(/^#/, '').split('?')[0]; }
   function leafWithText(rx){
-    var all=document.querySelectorAll('main *, #root *');
-    for(var i=0;i<all.length;i++){ var el=all[i];
-      if(el.children.length===0 && rx.test((el.textContent||'').trim())) return el; }
+    var all = document.querySelectorAll('main *');
+    for (var i=0;i<all.length;i++){ if (all[i].children.length===0 && rx.test((all[i].textContent||'').trim())) return all[i]; }
     return null;
   }
+  function goProducts(e){
+    if (e) e.preventDefault();
+    try { window.parent.document.getElementById('mil-products').scrollIntoView({behavior:'smooth'}); }
+    catch(err){ try { window.open('../#/military','_top'); } catch(e2){} }
+  }
+  function codeRow(idPrefix){
+    return '<div class="codewrap">Already purchased? <input id="'+idPrefix+'-in" placeholder="Access code" aria-label="Access code">' +
+           '<button type="button" class="kap-btn navy" id="'+idPrefix+'-go" style="font-size:.68rem;padding:7px 12px">Unlock</button>' +
+           '<div class="kap-err" id="'+idPrefix+'-err"></div></div>';
+  }
+  function wireCode(idPrefix){
+    var go = document.getElementById(idPrefix+'-go');
+    if (!go) return;
+    go.onclick = function(){ KapAccess.tryUnlock(document.getElementById(idPrefix+'-in').value, document.getElementById(idPrefix+'-err')); };
+    document.getElementById(idPrefix+'-in').addEventListener('keydown', function(ev){ if (ev.key==='Enter'){ ev.preventDefault(); go.onclick(); } });
+  }
 
-  function apply(){
-    var onSummary = (location.hash||'').indexOf('/summary')===0 || (location.hash||'').indexOf('#/summary')===0;
-    var bar=document.getElementById('kap-bar');
-    if(unlocked()){ if(bar) bar.remove(); document.querySelectorAll('.kap-gated').forEach(function(e){e.classList.remove('kap-gated')}); var ov=document.getElementById('kap-ov'); if(ov) ov.remove(); return; }
-
-    /* upsell chip on non-summary pages */
-    if(!onSummary){
-      if(!bar && !sessionStorage.getItem('kap_bar_x')){
-        bar=document.createElement('div'); bar.id='kap-bar'; bar.className='kap-bar';
-        bar.innerHTML='⭐ <a href="#/summary">See your Financial Readiness Score →</a><button title="dismiss">×</button>';
-        bar.querySelector('button').onclick=function(){ sessionStorage.setItem('kap_bar_x','1'); bar.remove(); };
-        document.body.appendChild(bar);
-      }
-      var ov0=document.getElementById('kap-ov'); if(ov0) ov0.remove();
-      return;
-    }
-    if(bar) bar.remove();
-
-    /* summary page, locked: keep score visible, gate the rest */
-    var scoreLeaf=leafWithText(/^FINANCIAL READINESS$/i);
-    var tipsLeaf=leafWithText(/^TIPS TO IMPROVE$/i);
-    if(!scoreLeaf) return;               // page not rendered yet
-    var fullCard=scoreLeaf;
-    while(fullCard.parentElement && !(tipsLeaf && fullCard.contains(tipsLeaf))) fullCard=fullCard.parentElement;
-    if(tipsLeaf){
-      var tb=tipsLeaf; while(tb.parentElement && tb.parentElement!==fullCard) tb=tb.parentElement;
-      tb.classList.add('kap-gated');
-    }
-    var sib=fullCard.nextElementSibling;
-    while(sib){ if(sib.id!=='kap-ov') sib.classList.add('kap-gated'); sib=sib.nextElementSibling; }
-    /* hide the print button while locked (print is part of the paid report) */
-    document.querySelectorAll('button').forEach(function(b){ if(/print/i.test(b.textContent)) b.classList.add('kap-hide'); });
-
-    if(!document.getElementById('kap-ov')){
-      var ov=document.createElement('div'); ov.id='kap-ov'; ov.className='kap-overlay';
-      ov.innerHTML =
-        '<h3>🔒 Unlock Your Full Report — $27</h3>'+
-        '<p>Your score is just the headline. The full report shows the story behind it:</p>'+
-        '<ul>'+
-        '<li>Exactly what’s holding your score down — and how to fix each item</li>'+
-        '<li>Every important number from your Pay, Budget, TSP, and Housing tabs on one page</li>'+
-        '<li>Printable — take it to the bank, your spouse, or your first sergeant</li>'+
-        '</ul>'+
-        '<button class="kap-btn" id="kap-buy">Get Full Access — $27</button>'+
-        '<div class="kap-code">Already purchased? <input id="kap-code-in" placeholder="Access code"><button class="kap-btn" style="padding:8px 14px;font-size:.72rem" id="kap-code-go">Apply</button></div>'+
-        '<div class="kap-note" id="kap-msg"></div>';
-      fullCard.parentElement.insertBefore(ov, fullCard.nextElementSibling);
-      document.getElementById('kap-buy').onclick=function(){ document.getElementById('kap-msg').textContent='Checkout coming soon — you’ll receive your access code by email after purchase.'; };
-      document.getElementById('kap-code-go').onclick=function(){
-        var v=(document.getElementById('kap-code-in').value||'').trim().toUpperCase();
-        if(v===CODE){ setUnlocked(); location.reload(); }
-        else document.getElementById('kap-msg').textContent='That code doesn’t match — check your purchase email.';
-      };
+  /* ---------------- UI: access bar (top of toolkit) ---------------- */
+  function renderBar(){
+    var nav = document.querySelector('#root > div > nav');
+    if (!nav) return;
+    var bar = document.getElementById('kap-accessbar');
+    if (!bar){ bar = document.createElement('div'); bar.id='kap-accessbar'; bar.className='kap-accessbar'; nav.parentElement.insertBefore(bar, nav.nextSibling); }
+    if (KapAccess.level()==='full'){
+      bar.innerHTML = '<span class="kap-fullbadge"><b>✓</b> Full Toolkit Access</span><span>Every tool and your complete financial summary are unlocked.</span>';
+    } else if (!bar.dataset.ready){
+      bar.innerHTML = '<span><b>Have Full Access?</b> Enter your access code to unlock the complete toolkit.</span>' +
+        '<input id="kap-bar-in" placeholder="Access code" aria-label="Access code">' +
+        '<button type="button" class="kap-btn" id="kap-bar-go">Unlock</button>' +
+        '<span class="kap-err" id="kap-bar-err" style="width:auto"></span>';
+      wireCode('kap-bar');
+      bar.dataset.ready = '1';
     }
   }
 
-  var t; function later(){ clearTimeout(t); t=setTimeout(apply, 250); }
+  /* ---------------- UI: nav lock badges ---------------- */
+  function renderNavLocks(){
+    document.querySelectorAll('#root > div > nav a').forEach(function(a){
+      var r = (a.getAttribute('href')||'').replace(/^#/, '');
+      var dot = a.querySelector('.kap-lockdot');
+      if (KapAccess.level()==='limited' && PREMIUM[r]){
+        if (!dot){ dot = document.createElement('span'); dot.className='kap-lockdot'; dot.textContent='🔒'; a.insertBefore(dot, a.firstChild); }
+      } else if (dot) dot.remove();
+    });
+  }
+
+  /* ---------------- UI: premium preview panel (locked tools) ---------------- */
+  function renderRouteGate(){
+    var main = document.querySelector('main');
+    if (!main) return;
+    var r = route(), locked = KapAccess.level()==='limited' && PREMIUM[r];
+    var panel = document.getElementById('kap-premium');
+    /* restore hidden tool content when allowed */
+    if (!locked){
+      if (panel) panel.remove();
+      main.querySelectorAll('.kap-hidden').forEach(function(el){ el.classList.remove('kap-hidden'); });
+      return;
+    }
+    var p = PREMIUM[r];
+    main.querySelectorAll(':scope > *').forEach(function(el){ if (el.id!=='kap-premium') el.classList.add('kap-hidden'); });
+    if (!panel || panel.dataset.route !== r){
+      if (panel) panel.remove();
+      panel = document.createElement('div');
+      panel.id='kap-premium'; panel.className='kap-premium'; panel.dataset.route = r;
+      panel.innerHTML =
+        '<div class="kick">🔒 PREMIUM TOOL · FULL ACCESS</div>' +
+        '<h2>'+p.name+'</h2>' +
+        '<p class="what">'+p.what+'</p>' +
+        '<p class="why">'+p.why+'</p>' +
+        (p.note ? '<p class="why" style="color:var(--ink)">'+p.note+'</p>' : '') +
+        '<div class="divider"></div>' +
+        '<div class="kick">FULL ACCESS INCLUDES</div>' +
+        '<ul>' + FEATURES.map(function(f){ return '<li>'+f+'</li>'; }).join('') + '</ul>' +
+        '<span class="price">$27</span><button type="button" class="kap-btn" id="kap-p-buy">Get Full Access →</button>' +
+        codeRow('kap-p') +
+        '<p class="note">Your access code arrives with your $27 purchase — enter it here or in the bar above and everything unlocks instantly.</p>';
+      main.insertBefore(panel, main.firstChild);
+      document.getElementById('kap-p-buy').onclick = goProducts;
+      wireCode('kap-p');
+    }
+  }
+
+  /* ---------------- UI: summary gate (score free, detail premium) ---------------- */
+  function renderSummaryGate(){
+    var onSummary = route().indexOf('/summary')===0;
+    var ov = document.getElementById('kap-ov');
+    if (!onSummary || KapAccess.level()==='full'){
+      if (ov) ov.remove();
+      document.querySelectorAll('.kap-gated').forEach(function(e){ e.classList.remove('kap-gated'); });
+      document.querySelectorAll('button.kap-hide').forEach(function(b){ b.classList.remove('kap-hide'); });
+      return;
+    }
+    var scoreLeaf = leafWithText(/^FINANCIAL READINESS$/i), tipsLeaf = leafWithText(/^TIPS TO IMPROVE$/i);
+    if (!scoreLeaf) return;
+    var fullCard = scoreLeaf;
+    while (fullCard.parentElement && !(tipsLeaf && fullCard.contains(tipsLeaf))) fullCard = fullCard.parentElement;
+    if (tipsLeaf){ var tb=tipsLeaf; while (tb.parentElement && tb.parentElement!==fullCard) tb=tb.parentElement; tb.classList.add('kap-gated'); }
+    var sib = fullCard.nextElementSibling;
+    while (sib){ if (sib.id!=='kap-ov') sib.classList.add('kap-gated'); sib = sib.nextElementSibling; }
+    document.querySelectorAll('main button').forEach(function(b){ if (/print/i.test(b.textContent)) b.classList.add('kap-hide'); });
+    if (!ov){
+      ov = document.createElement('div'); ov.id='kap-ov'; ov.className='kap-premium';
+      ov.innerHTML =
+        '<div class="kick">🔒 YOUR SCORE IS FREE — THE ANALYSIS IS PREMIUM</div>' +
+        '<h2>Unlock Your Complete Financial Analysis</h2>' +
+        '<p class="what">Your Financial Readiness Score is above. Full Access reveals the story behind it — what’s holding it down, how to fix each item, and every key number from your tabs on one printable page.</p>' +
+        '<div class="divider"></div>' +
+        '<ul>' + FEATURES.map(function(f){ return '<li>'+f+'</li>'; }).join('') + '</ul>' +
+        '<span class="price">$27</span><button type="button" class="kap-btn" id="kap-ov-buy">Get Full Access →</button>' +
+        codeRow('kap-ov') +
+        '<p class="note">Access code arrives with purchase. Client-side unlock — for convenience, not bank-grade security.</p>';
+      fullCard.parentElement.insertBefore(ov, fullCard.nextElementSibling);
+      document.getElementById('kap-ov-buy').onclick = goProducts;
+      wireCode('kap-ov');
+    }
+  }
+
+  /* ---------------- orchestrator ---------------- */
+  function applyAll(){ renderBar(); renderNavLocks(); renderRouteGate(); renderSummaryGate(); }
+  var t; function later(){ clearTimeout(t); t = setTimeout(applyAll, 200); }
   window.addEventListener('hashchange', later);
   new MutationObserver(later).observe(document.getElementById('root'), {childList:true, subtree:true});
   later();
