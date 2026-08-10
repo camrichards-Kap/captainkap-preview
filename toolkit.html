@@ -900,5 +900,57 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
 })();
 </script>
 
+<script id="kap-cco-cta">
+/* Gentle upgrade path from the $27 toolkit's Credit Cards tool to the
+   $47 Credit Card Optimization System (separate product). */
+(function(){
+  function render(){
+    var on = (location.hash||'').indexOf('/credit-cards')>=0;
+    var el = document.getElementById('kap-cco-cta-box');
+    if (!on){ if (el) el.remove(); return; }
+    var main = document.querySelector('main');
+    if (!main || el || document.getElementById('kap-premium')) return;
+    el = document.createElement('div'); el.id='kap-cco-cta-box'; el.className='kap-premium'; el.style.textAlign='center';
+    el.innerHTML = '<div class="kick">GO DEEPER · SEPARATE PRODUCT</div>' +
+      '<h2>Want to take your credit-card strategy further?</h2>' +
+      '<p class="what">This tool shows how cards fit your military financial plan. The <b>Credit Card Optimization System</b> builds and manages your full strategy — benefits tracking, gap finding, a personalized card roadmap, welcome-offer pacing, and a complete tracking workbook.</p>' +
+      '<span class="price">$47</span><button type="button" class="kap-btn" id="kap-cco-go">Learn More →</button>';
+    main.appendChild(el);
+    document.getElementById('kap-cco-go').onclick = function(){
+      try { window.parent.location.hash = '/cco'; window.parent.scrollTo(0,0); } catch(e){}
+    };
+  }
+  window.addEventListener('hashchange', function(){ setTimeout(render, 400); });
+  new MutationObserver(function(){ if (!document.getElementById('kap-cco-cta-box')) setTimeout(render, 300); })
+    .observe(document.getElementById('root'), {childList:true, subtree:true});
+  render();
+})();
+</script>
+<script id="kap-cco-cta">
+/* Gentle upgrade path from the $27 toolkit's Credit Cards tool to the
+   $47 Credit Card Optimization System (separate product). */
+(function(){
+  function render(){
+    var on = (location.hash||'').indexOf('/credit-cards')>=0;
+    var el = document.getElementById('kap-cco-cta-box');
+    if (!on){ if (el) el.remove(); return; }
+    var main = document.querySelector('main');
+    if (!main || el || document.getElementById('kap-premium')) return;
+    el = document.createElement('div'); el.id='kap-cco-cta-box'; el.className='kap-premium'; el.style.textAlign='center';
+    el.innerHTML = '<div class="kick">GO DEEPER · SEPARATE PRODUCT</div>' +
+      '<h2>Want to take your credit-card strategy further?</h2>' +
+      '<p class="what">This tool shows how cards fit your military financial plan. The <b>Credit Card Optimization System</b> builds and manages your full strategy — benefits tracking, gap finding, a personalized card roadmap, welcome-offer pacing, and a complete tracking workbook.</p>' +
+      '<span class="price">$47</span><button type="button" class="kap-btn" id="kap-cco-go">Learn More →</button>';
+    main.appendChild(el);
+    document.getElementById('kap-cco-go').onclick = function(){
+      try { window.parent.location.hash = '/cco'; window.parent.scrollTo(0,0); } catch(e){}
+    };
+  }
+  window.addEventListener('hashchange', function(){ setTimeout(render, 400); });
+  new MutationObserver(function(){ if (!document.getElementById('kap-cco-cta-box')) setTimeout(render, 300); })
+    .observe(document.getElementById('root'), {childList:true, subtree:true});
+  render();
+})();
+</script>
 </body>
 </html>
