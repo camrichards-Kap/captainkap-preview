@@ -1436,11 +1436,58 @@ const CCO_STRATS = {
   balanced:{label:'Balanced', blurb:'Strong value with fewer cards and lower total fees.'}
 };
 const CCO_FEATURES = ['Personalized card path with reasoning, phases & timing','Current vs. typical welcome offers ("apply now" vs. "wait") — verified '+CCO_VER.checked,
-  'My Cards with auto-filled card profiles','Benefits tracker + "money on the table" finder','Welcome-offer optimizer with pace & status',
-  'Dynamic wallet strategy (incl. active-offer priority)','Portfolio analysis: strengths, gaps, utilization','Ultimate Collection: what’s worth it FOR YOU',
+  'My Cards with auto-filled card profiles','Benefits checklist organized by month / quarter / year — never miss a credit','Welcome offers auto-tracked from the database, with pace & status',
+  'Points Strategy: transfer partners, verified transfer bonuses & redemption math','Portfolio analysis: strengths, gaps, utilization','Ultimate Collection: what’s worth it FOR YOU',
   'Printable "My Credit Card Plan" + Excel workbook'];
+
+/* ============================================================
+   POINTS STRATEGY DATA — verified 8/10/26.
+   Partner lists & ratios: Upgraded Points guides (dates below).
+   Transfer bonuses: Frequent Miler tracker, updated 8/3/26.
+   Award "sweet spot" prices: Upgraded Points 6/16/26 + Award
+   Travel Finder 2026 guides. Programs change these without
+   notice — the UI always says "verify before transferring".
+   Update THIS block to refresh the whole tab.
+   ============================================================ */
+const CCO_PTS = {
+  checked:'8/10/26',
+  cash:{ amex:'≈0.6¢/pt as a statement credit', chase:'1¢/pt cash — up to 2¢ through Chase Travel on some cards',
+         citi:'≈1¢/pt through the ThankYou portal', c1:'1¢/pt on travel via the portal — cash redemptions are often worth less (check your card)' },
+  ecos:{
+    amex:{ name:'Amex Membership Rewards', src:'Upgraded Points 7/23/26',
+      air:[['Aer Lingus AerClub','1:1'],['Aeromexico Rewards','1:1.6'],['Air Canada Aeroplan','1:1'],['Air France-KLM Flying Blue','1:1'],['ANA Mileage Club','1:1'],['Avianca LifeMiles','1:1'],['British Airways Club','1:1'],['Cathay Pacific','5:4'],['Delta SkyMiles','1:1'],['Emirates Skywards','5:4'],['Iberia Club','1:1'],['JetBlue TrueBlue','1:0.8'],['Qantas Frequent Flyer','1:1'],['Qatar Airways Privilege Club','1:1'],['Singapore KrisFlyer','1:1'],['Virgin Atlantic Flying Club','1:1']],
+      hot:[['Choice Privileges','1:1'],['Hilton Honors','1:2'],['Marriott Bonvoy','1:1']] },
+    chase:{ name:'Chase Ultimate Rewards', src:'Upgraded Points 6/25/26',
+      note:'Heads-up: Sapphire Preferred & Ink Preferred transfers to Hyatt drop to 4:3 effective Oct 1, 2026 — the Sapphire Reserve keeps 1:1.',
+      air:[['Aer Lingus AerClub','1:1'],['Air Canada Aeroplan','1:1'],['Air France-KLM Flying Blue','1:1'],['British Airways Executive Club','1:1'],['Iberia Plus','1:1'],['JetBlue TrueBlue','1:1'],['Singapore KrisFlyer','1:1'],['Southwest Rapid Rewards','1:1'],['United MileagePlus','1:1'],['Virgin Atlantic Flying Club','1:1']],
+      hot:[['World of Hyatt','1:1 Reserve · 4:3 Preferred/Ink (eff. 10/1/26)'],['IHG One Rewards','1:1'],['Marriott Bonvoy','1:1'],['Wyndham Rewards','1:1']] },
+    citi:{ name:'Citi ThankYou', src:'Upgraded Points 7/1/26',
+      note:'Full ratios require a premium ThankYou card (Strata Premier / Strata Elite / Prestige) — without one, most partners transfer at only 1:0.7.',
+      air:[['Aeromexico Rewards','1:1'],['Air France-KLM Flying Blue','1:1'],['American AAdvantage','1:1'],['Avianca LifeMiles','1:1'],['Cathay Pacific','1:1'],['Emirates Skywards','1:0.8'],['EVA Air','1:1'],['JetBlue TrueBlue','1:1'],['Qantas Frequent Flyer','1:1'],['Qatar Airways Privilege Club','1:1'],['Singapore KrisFlyer','1:1'],['Thai Royal Orchid Plus','1:1'],['Turkish Miles&Smiles','1:1'],['Virgin Atlantic Flying Club','1:1']],
+      hot:[['Choice Privileges','1:1.5'],['Wyndham Rewards','1:1'],['Accor ALL','2:1'],['Preferred Hotels I Prefer','1:2'],['Leading Hotels Leaders Club','5:1']] },
+    c1:{ name:'Capital One Miles', src:'Upgraded Points 6/12/26',
+      air:[['Aeromexico Rewards','1:1'],['Air Canada Aeroplan','1:1'],['Air France-KLM Flying Blue','1:1'],['Avianca LifeMiles','1:1'],['British Airways Club','1:1'],['Cathay Pacific','1:1'],['Emirates Skywards','4:3'],['Etihad Guest','1:1'],['EVA Air','2:1.5'],['Finnair Plus','1:1'],['Japan Airlines Mileage Bank','2:1.5'],['JetBlue TrueBlue','5:3'],['Qantas Frequent Flyer','1:1'],['Qatar Airways Privilege Club','1:1'],['Singapore KrisFlyer','1:1'],['TAP Miles&Go','1:1'],['Turkish Miles&Smiles','1:1'],['Virgin Red','1:1']],
+      hot:[['Choice Privileges','1:1'],['Wyndham Rewards','1:1'],['Accor ALL','2:1'],['Preferred Hotels I Prefer','1:2']] }
+  },
+  bonuses:[
+    {from:'Amex MR', to:'British Airways / Iberia / Aer Lingus Avios', pct:'+30%', ends:'9/27/26'},
+    {from:'Chase UR', to:'IHG One Rewards', pct:'+70%', ends:'8/31/26'},
+    {from:'Citi TY', to:'Turkish Miles&Smiles', pct:'+40%', ends:'8/31/26'},
+    {from:'Citi TY', to:'Air France-KLM Flying Blue', pct:'+20%', ends:'8/22/26'},
+    {from:'Capital One', to:'Avianca LifeMiles', pct:'+15%', ends:'8/31/26'}],
+  bonSrc:'Frequent Miler transfer-bonus tracker, updated 8/3/26',
+  sweet:[
+    {t:'ANA business class · West Coast → Japan', pts:'52,500 Virgin Atlantic pts', via:'Virgin Atlantic books ANA — transfer 1:1 from Amex MR, Chase UR, or Citi TY', src:'Upgraded Points 6/16/26'},
+    {t:'ANA first class · US → Japan', pts:'72,500–85,000 Virgin Atlantic pts', via:'Same Virgin Atlantic booking path', src:'Upgraded Points 6/16/26'},
+    {t:'Qatar Qsuites business · US → Doha', pts:'70,000 Avios', via:'Amex MR → Avios (a 30% transfer bonus like the current one lowers the real MR cost)', src:'Upgraded Points 6/16/26'},
+    {t:'Air France/KLM business · US → Europe (saver)', pts:'60,000 Flying Blue miles', via:'All four ecosystems transfer to Flying Blue 1:1 — watch monthly Promo Rewards for less', src:'Upgraded Points 6/16/26'},
+    {t:'Virgin Atlantic economy · US → London', pts:'6,000 one-way / 12,000 round-trip', via:'One of the cheapest transatlantic awards anywhere', src:'Upgraded Points 6/16/26'},
+    {t:'Hyatt Category 1–4 hotels', pts:'3,500–15,000 pts/night', via:'Chase UR → Hyatt, at hotels that often cost $150–$300+/night in cash', src:'Award Travel Finder 2026'},
+    {t:'British Airways short-haul (intra-Europe)', pts:'from 4,000 Avios', via:'Avios from Amex MR or Chase UR', src:'Award Travel Finder 2026'},
+    {t:'5th night free on hotel award stays', pts:'Book 5 award nights, pay points for 4', via:'Hilton (standard rewards, elite members — Amex cards confer status) & Marriott (award stays). Amex MR → Hilton at 1:2 makes Hilton awards cheaper than they look. Verify each program\'s current rules', src:'program rules — verify'}]
+};
 const CCO = {
-  state: null, view: 'dash',
+  state: null, view: 'dash', benCur: 0, /* benCur = month offset for the benefits period navigator */
   load(){ try { this.state = JSON.parse(localStorage.getItem('kap_cco_state')) || {cards:[], profile:{}}; }
           catch(e){ this.state = {cards:[], profile:{}}; }
           this.state.cards = this.state.cards || []; this.state.profile = this.state.profile || {}; },
@@ -1451,9 +1498,47 @@ const CCO = {
     if (!d) return +c.fee||0;
     if (this.mil() && d.milFee===0) return 0;
     return d.fee; },
-  benefits(c){ const d = c.dbId ? this.db(c.dbId) : null; return d ? d.benefits.filter(b=>b.v>0) : []; },
-  usedFor(c){ const u = c.used||{}; return this.benefits(c).reduce((a,b,i)=>a+(+u[i]||0),0); },
-  potentialFor(c){ return this.benefits(c).reduce((a,b)=>a+b.v,0); }
+  /* ---- cadence engine: WHEN each benefit resets, derived from its label
+     ('/mo' → monthly, '/qtr' → quarterly, else annual — the safe default). ---- */
+  cadOf(l){ return l.indexOf('/mo')>-1 ? 'm' : (l.indexOf('/qtr')>-1 ? 'q' : 'a'); },
+  cadPeriods(cad){ return {m:12, q:4, s:2, a:1}[cad] || 1; },
+  cadLabel(cad){ return {m:'Monthly', q:'Quarterly', s:'Semi-Annual', a:'Annual'}[cad] || 'Annual'; },
+  /* merged benefit list for a card: database benefits (auto-populated) minus
+     any the user disabled, plus the user's custom benefits. Stable keys:
+     'd<index>' for database benefits, custom ids for custom ones. */
+  bensFor(c){
+    const d = c.dbId ? this.db(c.dbId) : null, off = c.benOff||{}, out = [];
+    (d ? d.benefits : []).forEach((b,i) => { const k = 'd'+i; if (off[k]) return;
+      const cad = this.cadOf(b.l);
+      out.push({k:k, l:b.l, v:b.v, cad:cad, occ:b.v/this.cadPeriods(cad), db:true}); });
+    (c.benCustom||[]).forEach(b => { if (off[b.k]) return;
+      out.push({k:b.k, l:b.l, v:(+b.occ||0)*this.cadPeriods(b.cad), cad:b.cad, occ:+b.occ||0, db:false}); });
+    return out;
+  },
+  hiddenBensFor(c){
+    const d = c.dbId ? this.db(c.dbId) : null, off = c.benOff||{}, out = [];
+    (d ? d.benefits : []).forEach((b,i) => { if (off['d'+i]) out.push({k:'d'+i, l:b.l}); });
+    (c.benCustom||[]).forEach(b => { if (off[b.k]) out.push({k:b.k, l:b.l}); });
+    return out;
+  },
+  /* period key for a cadence at a given date: 2026-08 · 2026-Q3 · 2026-H2 · 2026 */
+  perKey(cad, dt){ const y = dt.getFullYear(), m = dt.getMonth();
+    if (cad==='m') return y+'-'+String(m+1).padStart(2,'0');
+    if (cad==='q') return y+'-Q'+(Math.floor(m/3)+1);
+    if (cad==='s') return y+'-H'+(m<6?1:2);
+    return ''+y; },
+  benDoneAt(c,b,dt){ return !!((c.benDone||{})[b.k+'|'+this.perKey(b.cad,dt)]); },
+  /* estimated $ of benefits actually used this year = checked periods × per-period estimate.
+     Falls back to the legacy dollar-entry tracking for pre-existing data. */
+  usedFor(c){
+    const y = ''+new Date().getFullYear(); let sum = 0; const bd = c.benDone||{};
+    this.bensFor(c).forEach(b => { Object.keys(bd).forEach(key => {
+      if (bd[key] && key.indexOf(b.k+'|'+y)===0) sum += b.occ; }); });
+    if (!Object.keys(bd).length && c.used) sum += Object.keys(c.used).reduce((a,k)=>a+(+c.used[k]||0),0);
+    return sum;
+  },
+  potentialFor(c){ return this.bensFor(c).reduce((a,b)=>a+b.v,0); },
+  benefits(c){ return this.bensFor(c).filter(b=>b.v>0); }
 };
 
 /* Toolkit iframe auto-height. Primary channel: the toolkit posts its
@@ -1611,8 +1696,9 @@ function ccoRender(){
   if (!host) return;
   if (!Entitlements.has('credit_card_optimization')){ ccoRenderLocked(host); return; }
   CCO.load();
-  const T = [['dash','Dashboard'],['cards','My Cards'],['benefits','Benefits'],['path','My Path'],['collection','Collection'],
-             ['offers','Welcome Offers'],['wallet','Wallet Strategy'],['compare','Compare'],['portfolio','Portfolio'],['wb','Workbook']];
+  const T = [['dash','🏠 Dashboard'],['cards','💳 My Cards'],['benefits','🎁 Benefits'],['offers','🚀 Welcome Offers'],
+             ['path','🗺️ Card Path'],['points','✨ Points Strategy'],['compare','⚖️ Compare'],['portfolio','📊 Portfolio'],['wb','📗 Workbook']];
+  if (['collection','wallet'].indexOf(CCO.view)>-1) CCO.view = CCO.view==='collection' ? 'path' : 'dash';
   let h = '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px">' +
     '<span class="kap-fullbadge-site">✓ Credit Card Optimization Unlocked</span>' +
     '<span style="font-size:.8rem;color:var(--muted)">Offers verified '+CCO_META.verified+' ('+CCO_META.source+') — '+CCO_META.offerNote+'</span></div>';
@@ -1654,6 +1740,35 @@ function ccoRenderLocked(host){
 }
 
 function ccoStat(label, val){ return '<div class="cco-stat"><div class="n">'+val+'</div><div class="l">'+label+'</div></div>'; }
+function ccoOwnedEcos(){
+  const owned = CCO.state.cards.map(c=>c.dbId).filter(Boolean).map(id=>CCO.db(id));
+  return Object.keys(CCO_PTS.ecos).filter(k => owned.some(d=>d.net===k && (d.tags||[]).includes('transfer')));
+}
+function ccoEcoSummary(){
+  const ecos = ccoOwnedEcos();
+  if (!ecos.length) return '<div style="font-size:.82rem;color:var(--muted)">No transferable-points ecosystem yet — your Card Path starts with one for exactly this reason.</div>';
+  return ecos.map(k => { const e = CCO_PTS.ecos[k];
+    const bon = CCO_PTS.bonuses.filter(b => b.from.toLowerCase().indexOf(k==='c1'?'capital':k)===0 || (k==='amex'&&b.from.indexOf('Amex')===0) || (k==='chase'&&b.from.indexOf('Chase')===0) || (k==='citi'&&b.from.indexOf('Citi')===0));
+    return '<div style="font-size:.82rem;padding:3px 0"><b>'+e.name+'</b> <span style="color:var(--muted)">— '+(e.air.length+e.hot.length)+' transfer partners · cash floor '+CCO_PTS.cash[k]+'</span>'+
+      bon.map(b=>'<br><span style="color:var(--gold);font-weight:600">⚡ '+b.pct+' bonus to '+b.to+' (ends '+b.ends+')</span>').join('')+'</div>';
+  }).join('');
+}
+function ccoWalletTable(){
+  const owned = CCO.state.cards.map(c=>c.dbId).filter(Boolean).map(id=>CCO.db(id));
+  if (!owned.length) return '';
+  const pick = tag => owned.filter(d=>d.tags.includes(tag)).sort((a,b)=>b.fee-a.fee)[0];
+  const flat = pick('flat') || owned[0];
+  const active = ccoActiveOffers();
+  let h = '<div style="margin-top:10px;font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:600">Which card to pull out</div><table class="cco-tbl" style="margin-top:4px">';
+  if (active.length){
+    const c = active[0], os = ccoOfferStatus(c);
+    h += '<tr style="background:rgba(200,162,74,.08)"><td><b>⭐ Offer spending</b></td><td><b>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</b> <span style="color:var(--muted);font-size:.78rem">— '+ccoUsd(Math.max(0,os.req-os.done))+' remaining on this welcome offer; route planned spending here first.</span></td></tr>';
+  }
+  h += [['Dining', pick('dining')],['Groceries', pick('grocery')],['Flights', owned.filter(d=>d.tags.includes('travel')||d.tags.includes('airline')).sort((a,b)=>b.fee-a.fee)[0]],
+    ['Hotels', pick('hotel')],['Everything else', flat]].map(r =>
+    '<tr><td><b>'+r[0]+'</b></td><td>'+(r[1]? r[1].name+' <span style="color:var(--muted);font-size:.78rem">— '+r[1].earn+'</span>' : '<span style="color:var(--muted)">no strong option yet</span>')+'</td></tr>').join('');
+  return h + '</table>';
+}
 function ccoProfileForm(p){
   const sel = (id,label,opts,cur) => '<div class="field"><label>'+label+'</label><select id="'+id+'">'+
     opts.map(o=>'<option'+(cur===o?' selected':'')+'>'+o+'</option>').join('')+'</select></div>';
@@ -1675,16 +1790,47 @@ function ccoView(v){
     const limits = cards.reduce((a,c)=>a+(+c.limit||0),0);
     const bal = cards.reduce((a,c)=>a+(+c.balance||0),0);
     const offers = ccoActiveOffers();
-    return '<div class="cco-stats">' + ccoStat('Cards owned', cards.length) + ccoStat('Annual fees'+(CCO.mil()?' (military)':''), ccoUsd(fees)) +
-      ccoStat('Tracked benefit value', ccoUsd(pot)) + ccoStat('Potential unused value', ccoUsd(Math.max(0,pot-used))) +
+    const now = new Date();
+    /* benefits due this period, still unchecked */
+    let dueCt=0, dueVal=0, dueTop=[];
+    cards.forEach(c => CCO.bensFor(c).forEach(b => {
+      if (!CCO.benDoneAt(c,b,now)){ dueCt++; dueVal+=b.occ;
+        if (b.occ>0) dueTop.push({card:(c.dbId?CCO.db(c.dbId).name:c.name), l:b.l, occ:b.occ}); }
+    }));
+    dueTop.sort((a,b)=>b.occ-a.occ);
+    const nextStep = p.strategy ? ccoPath().steps[0] : null;
+    const q = (n, title, body, tab, cta) => '<div class="tool" style="margin-bottom:14px"><div class="kick" style="margin-bottom:4px">'+n+'</div><h3 style="margin-bottom:6px">'+title+'</h3>'+body+
+      (tab?'<button type="button" class="btn navy" data-ccotab-jump="'+tab+'" style="margin-top:10px;padding:8px 16px;font-size:.7rem">'+cta+'</button>':'')+'</div>';
+    let h = '<div class="cco-stats">' + ccoStat('Cards owned', cards.length) + ccoStat('Annual fees'+(CCO.mil()?' (military)':''), ccoUsd(fees)) +
+      ccoStat('Benefit value used (est.)', ccoUsd(used)) + ccoStat('Potential value remaining', ccoUsd(Math.max(0,pot-used))) +
       ccoStat('Active welcome offers', offers.length) +
-      (limits? ccoStat('Total credit limit', ccoUsd(limits)) : '') +
-      (limits? ccoStat('Utilization', Math.round(bal/limits*100)+'%') : '') + '</div>' +
-      '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
-      (cards.length===0 ? '<button class="btn gold" data-ccotab-jump="cards">Step 1: Add My Cards →</button>' :
-        (!p.strategy ? '<button class="btn gold" data-ccotab-jump="path">Step 2: Build My Path →</button>' :
-         '<button class="btn gold" data-ccotab-jump="path">View My Path →</button>')) +
-      '<button class="btn navy" type="button" id="cco-print">🖨 Print / Save My Credit Card Plan</button></div>';
+      (limits? ccoStat('Utilization', Math.round(bal/limits*100)+'%') : '') + '</div>';
+    if (!cards.length)
+      return h + '<div class="tool"><h3>Start Here</h3><p style="font-size:.88rem">Add your cards and everything else builds itself — benefits checklists, welcome-offer tracking, your card path, and your points strategy.</p><button class="btn gold" data-ccotab-jump="cards">Step 1: Add My Cards →</button></div>';
+    h += q('1 · WHAT CARDS DO I HAVE?',
+      cards.length+' card'+(cards.length>1?'s':'')+' · '+ccoUsd(fees)+'/yr in fees',
+      '<div style="font-size:.82rem;color:var(--muted)">'+cards.map(c=>(c.dbId?CCO.db(c.dbId).name:c.name)).join(' · ')+'</div>',
+      'cards','Manage My Cards →');
+    h += q('2 · WHAT BENEFITS DO I NEED TO USE?',
+      (dueCt? dueCt+' unclaimed this period — ≈'+ccoUsd(dueVal)+' on the table' : 'All caught up for this period ✓'),
+      (dueTop.length? dueTop.slice(0,4).map(u=>'<div style="font-size:.82rem;padding:3px 0">○ '+u.l+' <span style="color:var(--muted)">('+u.card+' · est. '+ccoUsd(u.occ)+')</span></div>').join('') :
+        '<div style="font-size:.82rem;color:var(--muted)">Estimates only — a benefit is worth what you\'d genuinely use.</div>'),
+      'benefits','Open The Checklist →');
+    h += q('3 · WHAT OFFERS AM I WORKING ON?',
+      (offers.length? offers.length+' active welcome offer'+(offers.length>1?'s':'') : 'No active welcome offers'),
+      (offers.length? offers.map(c=>{ const os=ccoOfferStatus(c); return '<div style="font-size:.82rem;padding:3px 0"><b>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</b> — '+os.status+' · '+ccoUsd(Math.max(0,os.req-os.done))+' to go'+(os.days!==null?' · '+os.days+' days left':'')+'</div>'; }).join('') :
+        '<div style="font-size:.82rem;color:var(--muted)">Offers auto-track when you add a card from the database.</div>'),
+      'offers','Track Offers →');
+    h += q('4 · WHAT CARD SHOULD I GET NEXT?',
+      (nextStep? nextStep.card.name : (p.strategy? 'Your path is complete for now' : 'Build your path first')),
+      (nextStep? '<div style="font-size:.82rem;color:var(--muted)">'+nextStep.why.split('.')[0]+'.</div>' :
+        '<div style="font-size:.82rem;color:var(--muted)">Answer a few profile questions and the engine builds a phased, personalized path.</div>'),
+      'path', (p.strategy?'See The Full Path →':'Build My Path →'));
+    h += q('5 · WHAT SHOULD I DO WITH MY POINTS?',
+      'Your points strategy',
+      ccoEcoSummary() + ccoWalletTable(),
+      'points','Open Points Strategy →');
+    return h + '<button class="btn navy" type="button" id="cco-print" style="margin-top:4px">🖨 Print / Save My Credit Card Plan</button>';
   }
   if (v==='cards'){
     let h = cards.map((c,i) => {
@@ -1714,29 +1860,63 @@ function ccoView(v){
     return h;
   }
   if (v==='benefits'){
-    if (!cards.length) return '<div class="tool"><div class="note">Add cards first — benefits auto-populate.</div></div>';
-    let unusedList = [];
-    let h = '';
+    if (!cards.length) return '<div class="tool"><div class="note">Add cards first — every card\'s benefits auto-populate into this checklist.</div></div>';
+    const now = new Date();
+    const cur = new Date(now.getFullYear(), now.getMonth()+CCO.benCur, 1);
+    const isNow = CCO.benCur===0;
+    const monthName = cur.toLocaleDateString('en-US',{month:'long', year:'numeric'});
+    const perLabel = { m: monthName, q: 'Q'+(Math.floor(cur.getMonth()/3)+1)+' '+cur.getFullYear(),
+                       s: (cur.getMonth()<6?'First':'Second')+' half of '+cur.getFullYear(), a: ''+cur.getFullYear() };
+    /* gather every benefit across cards, bucketed by cadence */
+    const buckets = {m:[], q:[], s:[], a:[]}; const hidden=[];
     cards.forEach((c,i) => {
-      const bens = CCO.benefits(c); if (!bens.length) return;
-      const pot = CCO.potentialFor(c), used = CCO.usedFor(c);
-      const name = c.dbId?CCO.db(c.dbId).name:c.name;
-      h += '<div class="tool" style="margin-bottom:14px"><h3>'+name+'</h3>' +
-        '<div class="note">Fee '+ccoUsd(CCO.fee(c))+' · potential tracked credits '+ccoUsd(pot)+'/yr (estimates — worth what you actually use)</div>' +
-        bens.map((b,j) => {
-          const u = +((c.used||{})[j]||0);
-          if (u<=0) unusedList.push({card:name, ben:b.l, v:b.v});
-          return '<div class="field" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">' +
-          '<label style="margin:0;flex:1">'+(u>=b.v?'✓ ':'○ ')+b.l+' <span style="color:var(--muted)">(est. '+ccoUsd(b.v)+')</span></label>' +
-          '<input type="number" min="0" max="'+b.v+'" value="'+(u||'')+'" placeholder="0" data-cco-used="'+i+':'+j+'" style="width:90px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit"> used</div>'; }).join('') +
-        '<div class="bar-track"><div class="bar-fill" style="width:'+(pot?Math.min(100,used/pot*100):0)+'%"></div></div>' +
-        '<div style="font-size:.85rem;margin-top:6px">Used '+ccoUsd(used)+' · <b style="color:var(--gold)">'+ccoUsd(Math.max(0,pot-used))+' potential value remaining</b></div></div>';
+      CCO.bensFor(c).forEach(b => buckets[b.cad].push({c:c, ci:i, b:b, name:(c.dbId?CCO.db(c.dbId).name:c.name)}));
+      CCO.hiddenBensFor(c).forEach(b => hidden.push({ci:i, k:b.k, l:b.l, name:(c.dbId?CCO.db(c.dbId).name:c.name)}));
     });
-    if (unusedList.length){
-      h = '<div class="tool" style="margin-bottom:14px;border-left:4px solid var(--gold)"><h3>💸 You May Be Leaving Money On The Table</h3>' +
-        '<div class="note">Benefits with no recorded usage — potential unused value, if you\'d genuinely use them:</div>' +
-        unusedList.slice(0,8).map(u=>'<div style="font-size:.85rem;padding:5px 0;border-bottom:1px dashed var(--line)"><b>'+(u.v?ccoUsd(u.v):'')+'</b> '+u.ben+' <span style="color:var(--muted)">('+u.card+')</span></div>').join('') + '</div>' + h;
-    }
+    /* value dashboards — this month (monthly benefits) + this year (everything) */
+    let moPot=0, moUsed=0;
+    buckets.m.forEach(x => { moPot+=x.b.occ; if (CCO.benDoneAt(x.c,x.b,cur)) moUsed+=x.b.occ; });
+    const yrPot = cards.reduce((a,c)=>a+CCO.potentialFor(c),0);
+    const yrUsed = cards.reduce((a,c)=>a+CCO.usedFor(c),0);
+    let h = '<div class="cco-stats">' +
+      ccoStat('This month: potential', ccoUsd(moPot)) + ccoStat('This month: claimed', ccoUsd(moUsed)) + ccoStat('This month: remaining', ccoUsd(Math.max(0,moPot-moUsed))) +
+      ccoStat(cur.getFullYear()+': potential', ccoUsd(yrPot)) + ccoStat(cur.getFullYear()+': claimed (est.)', ccoUsd(yrUsed)) + '</div>' +
+      '<p style="font-size:.75rem;color:var(--muted);margin:2px 0 14px">Values are <b>estimates of the maximum credit</b>, not promises — a benefit is only worth what you\'d genuinely use anyway. Check items off as you use them.</p>';
+    /* period navigation */
+    h += '<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;flex-wrap:wrap">' +
+      '<button type="button" class="btn navy" id="cco-ben-prev" style="padding:8px 14px">←</button>' +
+      '<span style="font-family:Oswald;font-size:1.05rem;letter-spacing:.04em">'+(isNow?'THIS MONTH — ':'')+monthName.toUpperCase()+'</span>' +
+      '<button type="button" class="btn navy" id="cco-ben-next" style="padding:8px 14px">→</button>' +
+      (!isNow?'<button type="button" class="btn outline" id="cco-ben-today" style="padding:8px 14px;font-size:.68rem">Back to today</button>':'') + '</div>';
+    const row = x => {
+      const done = CCO.benDoneAt(x.c, x.b, cur);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);font-size:.88rem">' +
+        '<input type="checkbox" '+(done?'checked':'')+' data-cco-ben="'+x.ci+'|'+x.b.k+'|'+x.b.cad+'" style="width:19px;height:19px;accent-color:var(--gold);cursor:pointer;flex-shrink:0">' +
+        '<span style="flex:1;'+(done?'color:var(--muted);text-decoration:line-through':'')+'">'+x.b.l+' <span style="color:var(--muted)">· '+x.name+'</span></span>' +
+        (x.b.occ>0?'<span style="font-family:Oswald;color:'+(done?'#16803c':'var(--gold)')+'">'+(done?'✓ ':'')+ccoUsd(x.b.occ)+'</span>':'<span style="font-size:.72rem;color:var(--muted)">value varies</span>') +
+        '<button type="button" data-cco-benoff="'+x.ci+'|'+x.b.k+'" title="Hide — I don\'t use this benefit" style="border:none;background:none;color:var(--muted);cursor:pointer;font-size:.9rem">✕</button></div>';
+    };
+    const section = (cad, icon, note) => {
+      const arr = buckets[cad]; if (!arr.length) return '';
+      const done = arr.filter(x=>CCO.benDoneAt(x.c,x.b,cur)).length;
+      return '<div class="tool" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap"><h3>'+icon+' '+CCO.cadLabel(cad)+' — '+perLabel[cad]+'</h3>' +
+        '<span style="font-size:.75rem;color:var(--muted)">'+done+' / '+arr.length+' claimed</span></div>' +
+        '<div class="note" style="margin-top:0">'+note+'</div>' + arr.map(row).join('') + '</div>';
+    };
+    h += section('m','🗓','Use-it-or-lose-it credits that reset every month.');
+    h += section('q','📆','Reset every quarter — this one covers '+perLabel.q+'.');
+    h += section('s','🌗','Reset every six months — this one covers the '+perLabel.s.toLowerCase()+'.');
+    h += section('a','🎯','Once-a-year benefits and credits for '+perLabel.a+'.');
+    /* custom benefit + hidden management */
+    h += '<form class="tool" id="cco-benadd" style="margin-bottom:14px"><h3>Add A Custom Benefit</h3><div class="note">Track something the database doesn\'t — a retention credit, a targeted offer, anything on your card.</div>' +
+      '<div class="two" style="gap:14px"><div class="field"><label>Card</label><select id="cb-card">'+cards.map((c,i)=>'<option value="'+i+'">'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</option>').join('')+'</select></div>' +
+      '<div class="field"><label>Benefit name</label><input id="cb-label" placeholder="e.g. $50 retention credit"></div></div>' +
+      '<div class="two" style="gap:14px"><div class="field"><label>Value per period ($, your estimate)</label><input id="cb-occ" type="number" min="0" step="1"></div>' +
+      '<div class="field"><label>How often does it reset?</label><select id="cb-cad"><option value="m">Monthly</option><option value="q">Quarterly</option><option value="s">Semi-annually</option><option value="a" selected>Annually</option></select></div></div>' +
+      '<button class="btn gold" type="submit">Add Benefit</button></form>';
+    if (hidden.length)
+      h += '<div class="tool"><h3>Hidden Benefits</h3><div class="note">Hidden from the checklist and the value math — restore anytime.</div>' +
+        hidden.map(x=>'<div style="font-size:.82rem;padding:4px 0">'+x.l+' <span style="color:var(--muted)">('+x.name+')</span> <button type="button" data-cco-benon="'+x.ci+'|'+x.k+'" class="btn outline" style="padding:4px 10px;font-size:.62rem;margin-left:8px">Restore</button></div>').join('') + '</div>';
     return h;
   }
   if (v==='path'){
@@ -1764,48 +1944,107 @@ function ccoView(v){
       });
       if (notes.length) h += '<div class="tool" style="margin-top:8px"><div class="note">Held back by eligibility rules: '+notes.join(' · ')+'</div></div>';
       h += '<p style="font-size:.75rem;color:var(--muted)">Approvals are never guaranteed; offers vary by applicant and change. Space applications out, keep utilization low, and never spend beyond your normal budget to chase a bonus.</p></div>';
+      /* Ultimate Collection — every other card, categorized for this profile */
+      const col = ccoCollection();
+      const sec = (title, arr, color) => arr.length ? '<div class="tool" style="margin-bottom:14px;border-left:4px solid '+color+'"><h3>'+title+'</h3>' +
+        arr.map(([d,r])=>'<div style="font-size:.85rem;padding:6px 0;border-bottom:1px dashed var(--line)"><b>'+d.name+'</b> <span style="color:var(--muted)">('+(d.type==='business'?'Business':'Personal')+' · fee '+ccoUsd(d.fee)+')</span><br><span style="color:var(--muted)">'+r+'</span></div>').join('') + '</div>' : '';
+      h += '<details style="margin-top:22px"><summary style="cursor:pointer;font-family:Oswald;letter-spacing:.06em;font-size:.95rem">YOUR ULTIMATE COLLECTION — EVERY OTHER CARD, CATEGORIZED ▾</summary>' +
+        '<p style="font-size:.8rem;color:var(--muted);margin-top:10px">The goal is an optimized portfolio, not a big one. Beyond your path, here\'s how every tracked card rates for YOUR profile:</p>' +
+        sec('High Priority', col.high, '#b3202c') + sec('Potentially Valuable', col.maybe, 'var(--gold)') +
+        sec('Situational', col.situational, 'var(--navy)') + sec('Probably Not Worth It For You', col.skip, 'var(--line)') + '</details>';
     }
     return h;
   }
-  if (v==='collection'){
-    if (!p.strategy) return '<div class="tool"><div class="note">Build your path first (My Path tab) — the Collection is personalized from the same profile.</div></div>';
-    const col = ccoCollection();
-    const sec = (title, arr, color) => arr.length ? '<div class="tool" style="margin-bottom:14px;border-left:4px solid '+color+'"><h3>'+title+'</h3>' +
-      arr.map(([d,r])=>'<div style="font-size:.85rem;padding:6px 0;border-bottom:1px dashed var(--line)"><b>'+d.name+'</b> <span style="color:var(--muted)">('+(d.type==='business'?'Business':'Personal')+' · fee '+ccoUsd(d.fee)+')</span><br><span style="color:var(--muted)">'+r+'</span></div>').join('') + '</div>' : '';
-    return '<div class="kick">YOUR ULTIMATE COLLECTION — WHAT\'S ACTUALLY WORTH IT</div>' +
-      '<p style="font-size:.8rem;color:var(--muted)">The goal is an optimized portfolio, not a big one. Categorized for YOUR profile:</p>' +
-      sec('High Priority', col.high, '#b3202c') + sec('Potentially Valuable', col.maybe, 'var(--gold)') +
-      sec('Situational', col.situational, 'var(--navy)') + sec('Probably Not Worth It For You', col.skip, 'var(--line)');
-  }
   if (v==='offers'){
     const offers = ccoActiveOffers();
-    if (!offers.length) return '<div class="tool"><div class="note">No active welcome offers. Add offer terms (from your approval letter) to a card in My Cards.</div></div>';
-    return '<p style="font-size:.8rem;color:var(--muted)"><b>Never spend beyond your normal budget to earn a bonus</b> — pace already-planned spending.</p>' +
-      offers.map(c => {
-        const i = cards.indexOf(c), os = ccoOfferStatus(c);
-        return '<div class="tool" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><h3>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</h3><span style="font-family:Oswald;font-size:.8rem">'+os.status+'</span></div>' +
-          '<div class="field"><label>Spend so far <output>'+ccoUsd(os.done)+' / '+ccoUsd(os.req)+'</output></label>' +
-          '<input type="number" min="0" value="'+os.done+'" data-cco-odone="'+i+'" style="width:140px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit"></div>' +
-          '<div class="bar-track"><div class="bar-fill" style="width:'+os.pct+'%"></div></div>' +
-          '<div style="font-size:.85rem;margin-top:6px">'+Math.round(os.pct)+'% · '+ccoUsd(Math.max(0,os.req-os.done))+' remaining' +
-          (os.days!==null?' · '+os.days+' days left':'') + (os.pace?' · required pace ≈'+ccoUsd(os.pace)+'/day of planned spending':'') + '</div></div>';
-      }).join('');
+    const done = cards.filter(c=>+c.offerSpend>0 && (+c.offerDone||0) >= +c.offerSpend);
+    /* owned database cards with a known current offer that isn't being tracked */
+    const untracked = cards.map((c,i)=>({c:c,i:i})).filter(x => !(+x.c.offerSpend>0) && !(+x.c.offerDone>0) && x.c.dbId && (d=>d&&d.offer&&d.offer.spend)(CCO.db(x.c.dbId)));
+    let h = '<p style="font-size:.8rem;color:var(--muted)"><b>Never spend beyond your normal budget to earn a bonus</b> — pace already-planned spending.</p>';
+    if (!offers.length && !untracked.length && !done.length)
+      h += '<div class="tool"><div class="note">No welcome offers to track yet. Add a card from the database and its current offer auto-tracks — or enter your own terms on any card in My Cards.</div></div>';
+    h += offers.map(c => {
+      const i = cards.indexOf(c), os = ccoOfferStatus(c), d = c.dbId?CCO.db(c.dbId):null;
+      const fromDb = c.offerSrc==='db';
+      const srcLine = fromDb ?
+        '<div style="font-size:.75rem;margin:2px 0 8px"><span class="cco-chip keep" style="font-size:.6rem">DATABASE OFFER</span> <span style="color:var(--muted)">Terms from the card database ('+(d&&d.offer&&d.offer.bonus?d.offer.bonus+' · ':'')+'verified '+CCO_META.verified+'). Your approval letter is the truth — override below if yours differs.</span></div>' :
+        '<div style="font-size:.75rem;margin:2px 0 8px"><span class="cco-chip rev" style="font-size:.6rem">YOUR ACTUAL OFFER</span> <span style="color:var(--muted)">Terms you entered from your own approval.</span></div>';
+      return '<div class="tool" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><h3>'+(d?d.name:c.name)+'</h3><span style="font-family:Oswald;font-size:.8rem">'+os.status+'</span></div>' + srcLine +
+        '<div class="field"><label>Spend so far <output>'+ccoUsd(os.done)+' / '+ccoUsd(os.req)+'</output></label>' +
+        '<input type="number" min="0" value="'+os.done+'" data-cco-odone="'+i+'" style="width:140px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit"></div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:'+os.pct+'%"></div></div>' +
+        '<div style="font-size:.85rem;margin-top:6px">'+Math.round(os.pct)+'% · '+ccoUsd(Math.max(0,os.req-os.done))+' remaining' +
+        (os.days!==null?' · '+os.days+' days left':'') + (os.pace?' · required pace ≈'+ccoUsd(os.pace)+'/day of planned spending':'') + '</div>' +
+        '<details style="margin-top:10px;font-size:.82rem"><summary style="cursor:pointer;color:var(--muted)">'+(fromDb?'My actual offer is different — override':'Edit offer terms')+'</summary>' +
+        '<div class="two" style="gap:14px;margin-top:10px"><div class="field"><label>Spend required ($)</label><input type="number" min="0" value="'+os.req+'" data-cco-ospend="'+i+'"></div>' +
+        '<div class="field"><label>Deadline (YYYY-MM-DD)</label><input value="'+(c.offerDeadline||'')+'" placeholder="2026-12-01" data-cco-odl="'+i+'"></div></div></details></div>';
+    }).join('');
+    if (untracked.length)
+      h += '<div class="tool" style="border-left:4px solid var(--gold)"><h3>Offers You Could Be Tracking</h3><div class="note">These cards of yours have a current offer in the database. One click starts tracking — then override with your real terms.</div>' +
+        untracked.map(x => { const d = CCO.db(x.c.dbId);
+          return '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px dashed var(--line);font-size:.85rem"><span><b>'+d.name+'</b> — '+d.offer.bonus+' · '+ccoUsd(d.offer.spend)+(d.offer.months?' in '+d.offer.months+' mo':'')+'</span>' +
+          '<button type="button" class="btn gold" data-cco-track="'+x.i+'" style="padding:7px 14px;font-size:.66rem">Track This Offer</button></div>'; }).join('') + '</div>';
+    if (done.length)
+      h += '<div class="tool" style="margin-top:14px"><h3>✓ Completed Offers</h3>' + done.map(c=>'<div style="font-size:.85rem;padding:4px 0;color:var(--muted)">'+(c.dbId?CCO.db(c.dbId).name:c.name)+' — spend requirement met ('+ccoUsd(c.offerSpend)+')</div>').join('') + '</div>';
+    return h;
   }
-  if (v==='wallet'){
-    const owned = cards.map(c=>c.dbId).filter(Boolean).map(id=>CCO.db(id));
-    if (!owned.length) return '<div class="tool"><div class="note">Add database cards to generate your wallet strategy.</div></div>';
-    const pick = tag => owned.filter(d=>d.tags.includes(tag)).sort((a,b)=>b.fee-a.fee)[0];
-    const flat = pick('flat') || owned[0];
-    const active = ccoActiveOffers();
-    const rows = [['Dining', pick('dining')],['Groceries', pick('grocery')],['Flights', owned.filter(d=>d.tags.includes('travel')||d.tags.includes('airline')).sort((a,b)=>b.fee-a.fee)[0]],
-      ['Hotels', pick('hotel')],['Everything else', flat]];
-    let h = '<div class="tool"><h3>Your Wallet Strategy</h3><div class="note">Which card to pull out, and why.</div><table class="cco-tbl">';
-    if (active.length){
-      const c = active[0], os = ccoOfferStatus(c);
-      h += '<tr style="background:rgba(200,162,74,.08)"><td><b>⭐ Welcome-offer spending</b></td><td><b>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</b> <span style="color:var(--muted);font-size:.78rem">— you have '+ccoUsd(os.req-os.done)+' remaining on this offer; route planned spending here first'+(os.days!==null?' ('+os.days+' days left)':'')+'.</span></td></tr>';
+  if (v==='points'){
+    const ecos = ccoOwnedEcos();
+    const selEco = st.ptsEco && CCO_PTS.ecos[st.ptsEco] ? st.ptsEco : (ecos[0] || 'chase');
+    const e = CCO_PTS.ecos[selEco];
+    const calc = st.ptsCalc || {};
+    let h = '<div style="margin-bottom:14px;font-size:.78rem;color:var(--muted)">Partner lists & ratios verified '+CCO_PTS.checked+' (sources shown per table) · transfer bonuses per '+CCO_PTS.bonSrc+'. Programs change these without notice — <b>always verify before transferring</b>.</div>';
+    /* 1 · the core lesson */
+    h += '<div class="tool" style="margin-bottom:14px;border-left:4px solid var(--gold)"><h3>The One Rule: Never Transfer Speculatively</h3>' +
+      '<p style="font-size:.88rem">Transfers are <b>one-way</b> — once your points become airline miles, they\'re stuck there, subject to that program\'s devaluations and expiration rules. Find the award you want <b>first</b>, confirm the seat or room is bookable, then transfer exactly what you need.</p>' +
+      '<p style="font-size:.88rem"><b>Transferring is not automatically better than cash.</b> Your points have a guaranteed cash-style floor (below). A transfer only wins when the redemption beats that floor — and for domestic economy flights or cheap hotel nights, it often doesn\'t. Run the math with the calculator below every time.</p></div>';
+    /* 2 · my ecosystems */
+    h += '<div class="tool" style="margin-bottom:14px"><h3>My Points Ecosystems</h3>' +
+      (ecos.length ? '<div class="note">Built from the cards you own — each currency\'s cash floor and transfer reach:</div>' + ccoEcoSummary() :
+       '<div class="note">You don\'t own a transferable-points card yet — the Card Path starts with one. Everything below still works for learning.</div>') + '</div>';
+    /* 3 · CPP calculator */
+    const pts=+calc.pts||0, cash=+calc.cash||0, fees=+calc.fees||0;
+    const cpp = pts>0 && cash>0 ? ((cash-fees)/pts*100) : null;
+    let verdict='';
+    if (cpp!==null){
+      const band = cpp<1 ? ['#b3202c','Below 1¢ — weak. The cash-style redemption of your points likely beats this transfer.'] :
+        cpp<1.5 ? ['var(--navy)','1–1.5¢ — okay, roughly portal territory. Not a reason to transfer unless it\'s convenient.'] :
+        cpp<2.5 ? ['#16803c','1.5–2.5¢ — good. This is where transfers start clearly beating cash redemptions.'] :
+        ['var(--gold)','Above 2.5¢ — excellent. Premium-cabin / high-value territory.'];
+      verdict = '<div style="margin-top:12px;padding:12px 16px;background:var(--paper);border-radius:8px"><span style="font-family:Oswald;font-size:1.5rem;color:'+band[0]+'">'+cpp.toFixed(1)+'¢ per point</span><div style="font-size:.85rem;margin-top:4px">'+band[1]+'</div></div>';
     }
-    h += rows.map(r => '<tr><td><b>'+r[0]+'</b></td><td>'+(r[1]? r[1].name+' <span style="color:var(--muted);font-size:.78rem">— '+r[1].earn+'</span>' : '<span style="color:var(--muted)">no strong option — see Collection</span>')+'</td></tr>').join('');
-    return h + '</table></div>';
+    h += '<form class="tool" id="cco-cppform" style="margin-bottom:14px"><h3>Is This A Good Redemption? — Cents-Per-Point Calculator</h3>' +
+      '<div class="note">CPP = (cash price − award taxes/fees) ÷ points. Thresholds are general guidelines, not rules — YOUR alternative always matters most.</div>' +
+      '<div class="two" style="grid-template-columns:1fr 1fr 1fr;gap:12px">' +
+      '<div class="field"><label>Cash price of the same trip ($)</label><input id="cpp-cash" type="number" min="0" value="'+(calc.cash||'')+'"></div>' +
+      '<div class="field"><label>Points required</label><input id="cpp-pts" type="number" min="0" value="'+(calc.pts||'')+'"></div>' +
+      '<div class="field"><label>Award taxes & fees ($)</label><input id="cpp-fees" type="number" min="0" value="'+(calc.fees||'')+'"></div></div>' +
+      '<button class="btn gold" type="submit">Calculate</button>' + verdict + '</form>';
+    /* 4 · transfer partner explorer */
+    h += '<div class="tool" style="margin-bottom:14px"><h3>Transfer Partner Explorer</h3>' +
+      '<div class="field" style="max-width:340px"><label>Ecosystem</label><select id="cco-ptseco">' +
+      Object.keys(CCO_PTS.ecos).map(k=>'<option value="'+k+'"'+(k===selEco?' selected':'')+'>'+CCO_PTS.ecos[k].name+(ecos.indexOf(k)>-1?' (you have this)':'')+'</option>').join('') + '</select></div>' +
+      (e.note?'<div style="font-size:.8rem;padding:10px 14px;background:rgba(200,162,74,.08);border-radius:8px;margin-bottom:10px">⚠ '+e.note+'</div>':'') +
+      '<div class="two" style="align-items:start;gap:16px"><div><div class="kick" style="margin-bottom:6px">✈ AIRLINES</div><table class="cco-tbl">'+e.air.map(x=>'<tr><td>'+x[0]+'</td><td style="text-align:right;white-space:nowrap">'+x[1]+'</td></tr>').join('')+'</table></div>' +
+      '<div><div class="kick" style="margin-bottom:6px">🏨 HOTELS</div><table class="cco-tbl">'+e.hot.map(x=>'<tr><td>'+x[0]+'</td><td style="text-align:right;white-space:nowrap">'+x[1]+'</td></tr>').join('')+'</table>' +
+      '<div style="font-size:.72rem;color:var(--muted);margin-top:8px">Cash floor: '+CCO_PTS.cash[selEco]+'</div></div></div>' +
+      '<div style="font-size:.7rem;color:var(--muted);margin-top:10px">Source: '+e.src+' · ratios read "you give : you get"</div></div>';
+    /* 5 · current transfer bonuses */
+    h += '<div class="tool" style="margin-bottom:14px"><h3>⚡ Current Verified Transfer Bonuses</h3>' +
+      '<div class="note">A 30% bonus means 10,000 points become 13,000 miles. A bonus makes a good redemption better — it does NOT make transferring automatically right.</div><table class="cco-tbl">' +
+      CCO_PTS.bonuses.map(b=>'<tr><td><b>'+b.from+'</b> → '+b.to+'</td><td style="white-space:nowrap"><b style="color:var(--gold)">'+b.pct+'</b></td><td style="white-space:nowrap;color:var(--muted)">ends '+b.ends+'</td></tr>').join('') + '</table>' +
+      '<div style="font-size:.72rem;color:var(--muted);margin-top:8px">Per '+CCO_PTS.bonSrc+'. Programs not listed have <b>no current verified transfer bonus</b> as of that date.</div></div>';
+    /* 6 · sweet spots */
+    h += '<div class="tool" style="margin-bottom:14px"><h3>Known Sweet Spots — What Great Redemptions Look Like</h3>' +
+      '<div class="note">Real award prices from the sources shown (availability varies and programs reprice — treat as illustrations of the pattern, and verify before transferring):</div>' +
+      CCO_PTS.sweet.map(s=>'<div style="padding:8px 0;border-bottom:1px dashed var(--line);font-size:.85rem"><b>'+s.t+'</b> — <span style="color:var(--gold);font-weight:600">'+s.pts+'</span><br><span style="color:var(--muted)">'+s.via+' · <i>'+s.src+'</i></span></div>').join('') +
+      '<p style="font-size:.78rem;color:var(--muted);margin-top:10px">Worked example of the math: if a business-class seat priced at 60,000 transferred points would cost $3,000 in cash with $150 in award fees, that\'s (3000 − 150) ÷ 60,000 = <b>4.75¢/pt</b> — far above any cash floor. The same 60,000 points on a $600 economy ticket ≈ 1¢/pt, which cash-style redemption already matches. <i>(Cash prices here are hypothetical inputs to show the formula.)</i></p></div>';
+    /* 7 · should I transfer checklist */
+    h += '<div class="tool"><h3>Before You Transfer — The 60-Second Checklist</h3>' +
+      ['Found the specific award (flight/room) and confirmed it\'s bookable right now','Ran the CPP math above — it clearly beats your cash floor','Checked the bonus table — is there a verified bonus that applies?','Transferring only what THIS booking needs, not "stocking up"','Remembered transfers are final — no undo']
+        .map((x,i)=>'<div style="font-size:.88rem;padding:6px 0;border-bottom:1px dashed var(--line)"><b style="color:var(--gold)">'+(i+1)+'.</b> '+x+'</div>').join('') +
+      '<p style="font-size:.72rem;color:var(--muted);margin-top:10px">Educational only — not financial or travel advice. Rewards only have value when balances are paid in full.</p></div>';
+    return h;
   }
   if (v==='compare'){
     const sel = st.compare || ['amex-gold','csp',''];
@@ -1886,9 +2125,9 @@ function ccoPrintPlan(){
       const d=sp.card, off = d.offer&&d.offer.bonus ? d.offer.bonus+(d.offer.spend?' ('+ccoUsd(d.offer.spend)+(d.offer.months?' in '+d.offer.months+' mo':'')+')':'') : 'verify current offer';
       return '<div class="item"><h3>Step '+(i+1)+': '+d.name+'</h3><p>'+sp.why+'</p><p class="why">Target offer: '+off+' · Typical: '+(d.typical||'data unavailable')+' · Fee '+ccoUsd(d.fee)+(CCO.mil()&&d.milFee===0&&d.fee>0?' (typically $0 with military waiver — verify)':'')+'</p></div>';}).join('');
   }
-  const unused=[];
-  cards.forEach(c=>{ CCO.benefits(c).forEach((b,j)=>{ if(!((c.used||{})[j]>0) && b.v>0) unused.push((c.dbId?CCO.db(c.dbId).name:c.name)+': '+b.l+' (est. '+ccoUsd(b.v)+')'); }); });
-  if (unused.length) h+='<h2>Benefits To Use</h2><table>'+unused.slice(0,12).map(u=>'<tr><td>'+u+'</td></tr>').join('')+'</table>';
+  const unused=[]; const nowd=new Date();
+  cards.forEach(c=>{ CCO.bensFor(c).forEach(b=>{ if(!CCO.benDoneAt(c,b,nowd) && b.occ>0) unused.push((c.dbId?CCO.db(c.dbId).name:c.name)+': '+b.l+' ('+CCO.cadLabel(b.cad).toLowerCase()+' · est. '+ccoUsd(b.occ)+' this period)'); }); });
+  if (unused.length) h+='<h2>Benefits To Use This Period</h2><table>'+unused.slice(0,12).map(u=>'<tr><td>'+u+'</td></tr>').join('')+'</table>';
   const owned = cards.map(c=>c.dbId).filter(Boolean).map(id=>CCO.db(id));
   if (owned.length){
     const pick = tag => owned.filter(d=>d.tags.includes(tag)).sort((a,b)=>b.fee-a.fee)[0];
@@ -1907,8 +2146,7 @@ function ccoPrintPlan(){
 }
 
 function ccoWire(host){
-  const jump = host.querySelector('[data-ccotab-jump]');
-  if (jump) jump.onclick = () => { CCO.view = jump.dataset.ccotabJump; ccoRender(); };
+  host.querySelectorAll('[data-ccotab-jump]').forEach(j => j.onclick = () => { CCO.view = j.dataset.ccotabJump; ccoRender(); });
   const pr = host.querySelector('#cco-print'); if (pr) pr.onclick = ccoPrintPlan;
   const addForm = host.querySelector('#cco-addform');
   if (addForm){
@@ -1918,26 +2156,99 @@ function ccoWire(host){
       host.querySelector('#ca-namewrap').style.display = custom?'block':'none';
       host.querySelector('#ca-feewrap').style.display = custom?'block':'none';
       const d = !custom && dbSel.value ? CCO.db(dbSel.value) : null;
-      host.querySelector('#ca-preview').innerHTML = d ? '<b>Auto-filled:</b> '+d.issuer+' · fee '+ccoUsd(d.fee)+' · '+d.earn+' · '+d.purpose : '';
+      host.querySelector('#ca-preview').innerHTML = d ? '<b>Auto-filled:</b> '+d.issuer+' · fee '+ccoUsd(d.fee)+' · '+d.earn+' · '+d.purpose +
+        (d.benefits.length? '<br><b>Benefits checklist:</b> '+d.benefits.length+' benefit'+(d.benefits.length>1?'s':'')+' will auto-populate by month/quarter/year' : '') +
+        (d.offer && d.offer.spend ? '<br><b>Welcome offer:</b> '+d.offer.bonus+' ('+ccoUsd(d.offer.spend)+(d.offer.months?' in '+d.offer.months+' mo':'')+') will auto-track — override with your actual approval terms anytime' : '') : '';
     };
     addForm.onsubmit = e => {
       e.preventDefault();
       const v = id => host.querySelector(id).value.trim();
       const dbId = dbSel.value && dbSel.value!=='__custom' ? dbSel.value : null;
       if (!dbId && !v('#ca-name')) return;
+      /* welcome-offer auto-populate: user-entered terms always win; otherwise
+         prefill from the database's current offer (labeled as such in Welcome Offers) */
+      let oSpend = v('#ca-ospend'), oDl = v('#ca-odl'), oSrc = (oSpend||oDl) ? 'user' : null;
+      const d = dbId ? CCO.db(dbId) : null;
+      if (!oSpend && d && d.offer && d.offer.spend){
+        oSpend = d.offer.spend; oSrc = 'db';
+        if (!oDl && d.offer.months){
+          let base = new Date();
+          const m = /^(\d{4})-(\d{2})/.exec(v('#ca-open')||'');
+          if (m){ const pd = new Date(+m[1], +m[2]-1, 15); if (!isNaN(pd)) base = pd; }
+          base.setMonth(base.getMonth() + d.offer.months);
+          oDl = base.getFullYear()+'-'+String(base.getMonth()+1).padStart(2,'0')+'-'+String(base.getDate()).padStart(2,'0');
+        }
+      }
       CCO.state.cards.push({ dbId:dbId, name:v('#ca-name'), fee:v('#ca-fee'), opened:v('#ca-open'), limit:v('#ca-limit'),
-        balance:v('#ca-bal'), offerSpend:v('#ca-ospend'), offerDeadline:v('#ca-odl'), offerDone:0, notes:v('#ca-notes'), used:{} });
+        balance:v('#ca-bal'), offerSpend:oSpend, offerDeadline:oDl, offerDone:0, offerSrc:oSrc, notes:v('#ca-notes'), used:{}, benDone:{}, benOff:{}, benCustom:[] });
       CCO.save(); ccoRender();
     };
   }
   host.querySelectorAll('[data-cco-del]').forEach(b => b.onclick = () => { CCO.state.cards.splice(+b.dataset.ccoDel,1); CCO.save(); ccoRender(); });
-  host.querySelectorAll('[data-cco-used]').forEach(inp => inp.onchange = () => {
-    const parts = inp.dataset.ccoUsed.split(':'); const c = CCO.state.cards[+parts[0]];
-    c.used = c.used || {}; c.used[parts[1]] = +inp.value||0; CCO.save(); ccoRender();
+  /* ---- benefits checklist wiring ---- */
+  const benCur = () => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth()+CCO.benCur, 1); };
+  host.querySelectorAll('[data-cco-ben]').forEach(cb => cb.onchange = () => {
+    const parts = cb.dataset.ccoBen.split('|'); const c = CCO.state.cards[+parts[0]];
+    if (!c) return; c.benDone = c.benDone || {};
+    const key = parts[1]+'|'+CCO.perKey(parts[2], benCur());
+    if (cb.checked) c.benDone[key] = true; else delete c.benDone[key];
+    CCO.save(); ccoRender();
   });
+  host.querySelectorAll('[data-cco-benoff]').forEach(b => b.onclick = () => {
+    const parts = b.dataset.ccoBenoff.split('|'); const c = CCO.state.cards[+parts[0]];
+    if (!c) return; c.benOff = c.benOff || {}; c.benOff[parts[1]] = true; CCO.save(); ccoRender();
+  });
+  host.querySelectorAll('[data-cco-benon]').forEach(b => b.onclick = () => {
+    const parts = b.dataset.ccoBenon.split('|'); const c = CCO.state.cards[+parts[0]];
+    if (!c) return; delete (c.benOff||{})[parts[1]]; CCO.save(); ccoRender();
+  });
+  const bp = host.querySelector('#cco-ben-prev'); if (bp) bp.onclick = () => { CCO.benCur--; ccoRender(); };
+  const bn = host.querySelector('#cco-ben-next'); if (bn) bn.onclick = () => { CCO.benCur++; ccoRender(); };
+  const bt = host.querySelector('#cco-ben-today'); if (bt) bt.onclick = () => { CCO.benCur = 0; ccoRender(); };
+  const benAdd = host.querySelector('#cco-benadd');
+  if (benAdd) benAdd.onsubmit = e => {
+    e.preventDefault();
+    const c = CCO.state.cards[+host.querySelector('#cb-card').value];
+    const l = host.querySelector('#cb-label').value.trim();
+    if (!c || !l) return;
+    c.benCustom = c.benCustom || [];
+    c.benCustom.push({ k:'c'+Date.now(), l:l, occ:+host.querySelector('#cb-occ').value||0, cad:host.querySelector('#cb-cad').value });
+    CCO.save(); ccoRender();
+  };
+  /* ---- welcome-offer wiring ---- */
   host.querySelectorAll('[data-cco-odone]').forEach(inp => inp.onchange = () => {
     CCO.state.cards[+inp.dataset.ccoOdone].offerDone = +inp.value||0; CCO.save(); ccoRender();
   });
+  host.querySelectorAll('[data-cco-ospend]').forEach(inp => inp.onchange = () => {
+    const c = CCO.state.cards[+inp.dataset.ccoOspend]; if (!c) return;
+    c.offerSpend = +inp.value||0; c.offerSrc = 'user'; CCO.save(); ccoRender();
+  });
+  host.querySelectorAll('[data-cco-odl]').forEach(inp => inp.onchange = () => {
+    const c = CCO.state.cards[+inp.dataset.ccoOdl]; if (!c) return;
+    c.offerDeadline = inp.value.trim(); c.offerSrc = 'user'; CCO.save(); ccoRender();
+  });
+  host.querySelectorAll('[data-cco-track]').forEach(b => b.onclick = () => {
+    const c = CCO.state.cards[+b.dataset.ccoTrack]; if (!c || !c.dbId) return;
+    const d = CCO.db(c.dbId); if (!d || !d.offer || !d.offer.spend) return;
+    c.offerSpend = d.offer.spend; c.offerSrc = 'db'; c.offerDone = c.offerDone||0;
+    if (d.offer.months){
+      let base = new Date();
+      const m = /^(\d{4})-(\d{2})/.exec(c.opened||'');
+      if (m){ const pd = new Date(+m[1], +m[2]-1, 15); if (!isNaN(pd)) base = pd; }
+      base.setMonth(base.getMonth() + d.offer.months);
+      c.offerDeadline = base.getFullYear()+'-'+String(base.getMonth()+1).padStart(2,'0')+'-'+String(base.getDate()).padStart(2,'0');
+    }
+    CCO.save(); ccoRender();
+  });
+  /* ---- points strategy wiring ---- */
+  const ptsEco = host.querySelector('#cco-ptseco');
+  if (ptsEco) ptsEco.onchange = () => { CCO.state.ptsEco = ptsEco.value; CCO.save(); ccoRender(); };
+  const cppForm = host.querySelector('#cco-cppform');
+  if (cppForm) cppForm.onsubmit = e => {
+    e.preventDefault();
+    CCO.state.ptsCalc = { cash:host.querySelector('#cpp-cash').value, pts:host.querySelector('#cpp-pts').value, fees:host.querySelector('#cpp-fees').value };
+    CCO.save(); ccoRender();
+  };
   host.querySelectorAll('[data-cco-cmp]').forEach(sel => sel.onchange = () => {
     CCO.state.compare = CCO.state.compare || ['amex-gold','csp',''];
     CCO.state.compare[+sel.dataset.ccoCmp] = sel.value; CCO.save(); ccoRender();
