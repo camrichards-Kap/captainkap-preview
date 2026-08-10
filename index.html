@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Captain Kap — Discipline Into Wealth</title>
+<link rel="icon" href="assets/captain-kap-logo.jpg">
 <meta name="description" content="Garrett Kauppila — Captain Kap. Military-trained operator and CEO of Ashton Hall Enterprise. Creator finance, military money coaching, real estate, and giving.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -130,7 +131,8 @@ ul.feat li::before{content:"★";position:absolute;left:0;top:2px;color:var(--go
 ul.feat.light li{color:rgba(255,255,255,.9)}
 
 /* venture cards on home */
-.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:38px}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:38px}
+.cards>*{min-width:0}
 .cards.three{grid-template-columns:repeat(3,1fr)}
 @media(max-width:940px){.cards,.cards.three{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:540px){.cards,.cards.three{grid-template-columns:1fr}}
@@ -188,11 +190,12 @@ select,input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--li
 .tl .step span{display:block;font-size:.8rem;color:var(--muted)}
 
 /* products / pricing */
-.prices{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-.prices.three{grid-template-columns:repeat(3,1fr);align-items:stretch}
-@media(max-width:1020px){.prices.three{grid-template-columns:1fr}}
-@media(max-width:1020px){.prices{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:560px){.prices{grid-template-columns:1fr}}
+.prices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.prices>*{min-width:0}
+.prices.three{grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch}
+@media(max-width:1020px){.prices.three{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:1020px){.prices{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.prices{grid-template-columns:minmax(0,1fr)}}
 .pcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px 22px;display:flex;flex-direction:column;transition:transform .25s,box-shadow .25s}
 .pcard:hover{transform:translateY(-5px);box-shadow:0 22px 44px -24px rgba(10,37,64,.45)}
 .pcard.flag{grid-column:1 / -1;background:linear-gradient(135deg,var(--navy-2),var(--navy-deep));color:#fff;outline:2px solid var(--gold);outline-offset:-2px}
@@ -497,14 +500,15 @@ footer .flogo{width:64px;height:64px;border-radius:50%;object-fit:cover;margin:0
       <div class="reveal" id="toolkit-embed">
         <div class="kick" style="text-align:center">START HERE · FREE · NO SIGNUP</div>
         <h2 style="text-align:center">Military Financial Readiness Toolkit</h2>
-        <p class="body" style="text-align:center;max-width:680px;margin:0 auto 24px">Twelve calculators spanning the military money lifecycle — pay &amp; BAH, budget, rent vs. buy, PCS, deployment, TSP/BRS, credit cards, civilian pay, VA disability, pension, where to retire — free, with 2026 rate data, right in your browser. Work through them and get your <b style="color:var(--ink)">Financial Readiness Score</b> on the Summary tab. Want the full report behind your score? That's $27, below.</p>
-        <div style="border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 24px 56px -36px rgba(10,37,64,.4);background:#fff">
-          <!-- Auto-height: JS below sizes this frame to its content, so the
-               toolkit reads as part of the page — one scrollbar, no inner
-               window, tabs switch in place. -->
-          <iframe id="tk-iframe" src="toolkit.html" title="Military Financial Readiness Toolkit" loading="lazy"
-                  scrolling="no" style="width:100%;height:1300px;border:0;display:block"></iframe>
-        </div>
+        <p class="body" style="text-align:center;max-width:680px;margin:0 auto 10px">Twelve calculators spanning the military money lifecycle — pay &amp; BAH, budget, rent vs. buy, PCS, deployment, TSP/BRS, credit cards, civilian pay, VA disability, pension, where to retire — free, with 2026 rate data, right in your browser. Work through them and get your <b style="color:var(--ink)">Financial Readiness Score</b> on the Summary tab. Want the full report behind your score? That's $27, below.</p>
+        <p style="text-align:center;font-size:.72rem;color:var(--muted);margin:0 0 8px">Rates effective 2026-01-01 · Estimates only — not financial, tax, or investment advice, and not affiliated with the DoD, DFAS, or VA.</p>
+        <!-- The toolkit renders as plain in-page content: no border, no card,
+             no window chrome. Same-origin auto-height JS keeps one page
+             scrollbar; the app's internal header/footer are retired by its
+             integration stylesheet, so the section heading above is THE
+             heading and its pill tabs sit directly in the page flow. -->
+        <iframe id="tk-iframe" src="toolkit.html" title="Military Financial Readiness Toolkit" loading="lazy"
+                scrolling="no" style="width:100%;height:1300px;border:0;display:block;background:transparent"></iframe>
       </div>
     </div>
   </section>
