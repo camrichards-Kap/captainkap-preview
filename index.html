@@ -237,6 +237,8 @@ select,input[type=number]{width:100%;padding:10px 12px;border:1px solid var(--li
 .cco-stat .n{font-family:'Oswald';font-size:1.5rem;color:var(--navy)}
 .cco-stat .l{font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
 .cco-chip{font-family:'Oswald';font-size:.64rem;letter-spacing:1.2px;padding:4px 10px;border-radius:3px}
+.cco-hot{font-family:Oswald;font-size:.62rem;letter-spacing:1px;background:#fbe9d5;color:#b35a1e;border-radius:3px;padding:2px 7px}
+.cco-norm{font-family:Oswald;font-size:.62rem;letter-spacing:1px;background:var(--paper-2);color:var(--muted);border-radius:3px;padding:2px 7px}
 .cco-chip.keep{background:#dcf3e3;color:#16803c}.cco-chip.rev{background:#fbe0e0;color:#b3202c}
 .kap-act-site{border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:10px;padding:16px 18px;margin-bottom:12px;background:#fff}
 .kap-act-site.high{border-left-color:#b3202c}
@@ -1304,54 +1306,151 @@ const Entitlements = {
 };
 
 /* ============================================================
-   CCO — Credit Card Optimization System ($47)
-   Card data: extracted from the Kap toolkit card table (project
-   data), last verified 2026-01. Welcome offers are NOT included
-   by design (they change) — the tracker runs on what the USER
-   enters from their own approval terms. User state persists in
-   localStorage('kap_cco_state').
+   CCO v2 — CARD DATABASE + STATE
+   Centralized, updatable data. Offers verified 2026-08 from
+   The Points Guy (2026-08-02) and Doctor of Credit (2026-08-08);
+   null offer = not verified — UI says "verify with issuer".
+   NOTHING here is a guarantee: offers vary by applicant and
+   change without notice (Amex explicitly says so). Update this
+   array to refresh the whole product.
    ============================================================ */
+const CCO_VER = { checked:'2026-08', srcs:'The Points Guy (8/2/26), Doctor of Credit (8/8/26)' };
+function O(bonus, spend, months, quality, src, note){ return {bonus:bonus, spend:spend, months:months, quality:quality||null, src:src||'TPG 8/26', note:note||''}; }
 const CCO_DB = [
-  {id:'amex-gold', name:'AMEX Gold', issuer:'American Express', fee:325, milFee:0, headline:'Strong dining & grocery rewards', tags:['dining','grocery'], lounge:false,
-   benefits:[{l:'Uber Cash ($10/mo)',v:120},{l:'Dining Credit ($10/mo)',v:120},{l:'Dunkin Credit ($7/mo)',v:84}], est:'~$240–$300'},
-  {id:'amex-plat', name:'AMEX Platinum', issuer:'American Express', fee:895, milFee:0, headline:'Centurion Lounge, Priority Pass, hotel elite status', tags:['travel','lounge','hotel'], lounge:true,
-   benefits:[{l:'Uber Cash ($15/mo, $20 Dec)',v:185},{l:'Digital Entertainment ($20/mo)',v:240},{l:'Resy Credit',v:100},{l:'Lululemon Credit',v:75},{l:'Airline Credit',v:200},{l:'Hotel Credit',v:200},{l:'Entertainment Credit',v:300},{l:'Global Entry / TSA PreCheck',v:0}], est:'~$1,200–$2,000+'},
-  {id:'amex-schwab', name:'AMEX Charles Schwab Platinum', issuer:'American Express', fee:895, milFee:0, headline:'Cash out MR points into Schwab brokerage', tags:['travel','lounge','invest'], lounge:true,
-   benefits:[{l:'Same credit set as AMEX Platinum',v:1300}], est:'~$1,200–$2,000+'},
-  {id:'aspire', name:'Hilton Honors Aspire', issuer:'American Express', fee:550, milFee:0, headline:'Hilton Diamond status', tags:['hotel','travel'], lounge:false,
-   benefits:[{l:'Hilton Credit ($50/qtr)',v:200},{l:'Free Night Reward',v:0},{l:'Resort Credit',v:200}], est:'~$600–$2,000+'},
-  {id:'csr', name:'Chase Sapphire Reserve', issuer:'Chase', fee:795, milFee:0, headline:'Priority Pass, strong travel protections', tags:['travel','lounge','dining'], lounge:true,
-   benefits:[{l:'Travel Credit',v:300},{l:'Global Entry / TSA PreCheck',v:0}], est:'~$500–$900'},
-  {id:'csp', name:'Chase Sapphire Preferred', issuer:'Chase', fee:95, milFee:0, headline:'Strong travel points ecosystem', tags:['travel','dining'], lounge:false,
-   benefits:[{l:'Hotel Credit',v:50}], est:'~$150–$300'},
-  {id:'surpass', name:'Hilton Honors Surpass', issuer:'American Express', fee:150, milFee:0, headline:'Hilton Gold status', tags:['hotel'], lounge:false,
-   benefits:[{l:'Free Night after $15k spend',v:0}], est:'~$200–$500'},
-  {id:'brilliant', name:'Marriott Bonvoy Brilliant', issuer:'American Express', fee:650, milFee:0, headline:'Marriott Platinum status', tags:['hotel','travel'], lounge:false,
-   benefits:[{l:'Dining Credit ($25/mo)',v:300},{l:'Free Night Award (85k)',v:0},{l:'Global Entry / TSA PreCheck',v:0}], est:'~$400–$900'},
-  {id:'delta-res', name:'Delta SkyMiles Reserve', issuer:'American Express', fee:650, milFee:0, headline:'Delta Sky Club access', tags:['travel','lounge','airline'], lounge:true,
-   benefits:[{l:'Companion Certificate',v:0}], est:'~$300–$800'},
-  {id:'united-club', name:'United Club Infinite', issuer:'Chase', fee:695, milFee:0, headline:'United Club lounge membership', tags:['travel','lounge','airline'], lounge:true,
-   benefits:[{l:'United Club Membership',v:0}], est:'~$400–$900'},
-  {id:'cfu', name:'Chase Freedom Unlimited', issuer:'Chase', fee:0, milFee:0, headline:'Pairs with Sapphire for transfers', tags:['flat'], lounge:false,
-   benefits:[{l:'Cashback rewards',v:0}], est:'~$150–$400'},
-  {id:'dc', name:'Citi Double Cash', issuer:'Citi', fee:0, milFee:0, headline:'Simple flat-rate cashback', tags:['flat'], lounge:false,
-   benefits:[{l:'2% cashback everywhere',v:0}], est:'~$150–$400'}
+ // ---- transferable-points core ----
+ {id:'csp', name:'Chase Sapphire Preferred', issuer:'Chase', net:'chase', type:'personal', fee:95, milFee:0, cur:'Chase UR',
+  earn:'3x dining · 2x travel · UR transfers', purpose:'Starter transferable-points card; unlocks the Chase UR ecosystem',
+  tags:['travel','dining','transfer','starter'], lounge:false, benefits:[{l:'Hotel Credit',v:50}], est:'~$150–$300',
+  offer:null, typical:'Commonly 60K–100K UR', elig:'Subject to Chase 5/24; 100K offer ended 8/6/26 — check current offer',
+  offNote:'Recent 100K offer ended 8/6/2026 (Doctor of Credit) — verify what is live before applying'},
+ {id:'csr', name:'Chase Sapphire Reserve', issuer:'Chase', net:'chase', type:'personal', fee:795, milFee:0, cur:'Chase UR',
+  earn:'Premium travel earning · UR transfers', purpose:'Premium travel: lounge access, credits, protections',
+  tags:['travel','lounge','dining','transfer','premium'], lounge:true, benefits:[{l:'Travel Credit',v:300},{l:'Global Entry / TSA',v:0}], est:'~$500–$900',
+  offer:O('100,000 UR', 6000, 3, 'elevated', 'TPG 8/2/26'), typical:'Commonly 60K–100K UR', elig:'Subject to Chase 5/24'},
+ {id:'amex-gold', name:'American Express Gold', issuer:'Amex', net:'amex', type:'personal', fee:325, milFee:0, cur:'Amex MR',
+  earn:'4x dining · 4x U.S. supermarkets', purpose:'Food earning engine for the MR ecosystem',
+  tags:['dining','grocery','transfer'], lounge:false, benefits:[{l:'Uber Cash ($10/mo)',v:120},{l:'Dining Credit ($10/mo)',v:120},{l:'Dunkin ($7/mo)',v:84}], est:'~$240–$300',
+  offer:O('up to 100,000 MR', 8000, 6, 'elevated', 'TPG 8/2/26'), typical:'Commonly 60K–90K MR', elig:'Amex welcome offers are typically once per lifetime per card; offers vary by applicant'},
+ {id:'amex-plat', name:'American Express Platinum', issuer:'Amex', net:'amex', type:'personal', fee:895, milFee:0, cur:'Amex MR',
+  earn:'5x flights · premium credits', purpose:'Premium travel benefits: lounges, credits, elite status',
+  tags:['travel','lounge','hotel','transfer','premium'], lounge:true,
+  benefits:[{l:'Uber Cash ($15/mo, $20 Dec)',v:185},{l:'Digital Entertainment ($20/mo)',v:240},{l:'Resy',v:100},{l:'Lululemon',v:75},{l:'Airline Credit',v:200},{l:'Hotel Credit',v:200},{l:'Entertainment Credit',v:300},{l:'Global Entry / TSA',v:0}], est:'~$1,200–$2,000+',
+  offer:O('up to 175,000 MR', 12000, 6, 'elevated', 'TPG 8/2/26'), typical:'Commonly 80K–150K MR (varies by applicant)', elig:'Amex once-per-lifetime language; offers vary by applicant'},
+ {id:'amex-schwab', name:'Amex Charles Schwab Platinum', issuer:'Amex', net:'amex', type:'personal', fee:895, milFee:0, cur:'Amex MR',
+  earn:'Platinum benefits + MR cash-out to Schwab', purpose:'MR → Schwab brokerage redemption strategy',
+  tags:['travel','lounge','transfer','premium','invest'], lounge:true, benefits:[{l:'Platinum credit set',v:1300}], est:'~$1,200–$2,000+',
+  offer:null, typical:'Tracks Platinum-family offers', elig:'Requires a Schwab account; Amex lifetime language applies'},
+ {id:'venture-x', name:'Capital One Venture X', issuer:'Capital One', net:'c1', type:'personal', fee:395, milFee:null, cur:'C1 Miles',
+  earn:'2x everything · 10x hotels via portal', purpose:'Lower-fee premium travel alternative with lounge access',
+  tags:['travel','lounge','transfer','premium','flat'], lounge:true, benefits:[{l:'Travel Credit (portal)',v:300},{l:'Anniversary miles',v:100}], est:'~$400–$800',
+  offer:null, typical:'Commonly 75K miles', elig:'Verify current offer — prior elevated offers ended 4/30/26 (DoC). Military fee policy: verify with Capital One'},
+ {id:'venture', name:'Capital One Venture', issuer:'Capital One', net:'c1', type:'personal', fee:95, milFee:null, cur:'C1 Miles',
+  earn:'2x everything', purpose:'Simple flat travel earning', tags:['travel','flat','transfer'], lounge:false, benefits:[], est:'~$150–$400',
+  offer:null, typical:'Commonly 75K miles', elig:'Verify current offer and military fee policy with Capital One'},
+ {id:'strata', name:'Citi Strata Premier', issuer:'Citi', net:'citi', type:'personal', fee:95, milFee:null, cur:'Citi TY',
+  earn:'3x dining/groceries/gas/air/hotels', purpose:'Broad category earning + ThankYou transfers',
+  tags:['travel','dining','grocery','transfer'], lounge:false, benefits:[{l:'Hotel benefit (portal)',v:100}], est:'~$200–$400',
+  offer:null, typical:'Commonly 60K–75K TY', elig:'Verify current offer; military fee policy varies — verify with Citi'},
+ {id:'autograph-j', name:'Wells Fargo Autograph Journey', issuer:'Wells Fargo', net:'wf', type:'personal', fee:95, milFee:null, cur:'WF Points',
+  earn:'5x hotels · 4x airlines · 3x travel', purpose:'Transferable points outside the big-3 ecosystems',
+  tags:['travel','hotel','transfer'], lounge:false, benefits:[{l:'Airline Credit',v:50}], est:'~$150–$300',
+  offer:null, typical:'60K points at launch (CNBC)', elig:'Verify current offer and military fee policy with Wells Fargo'},
+ // ---- cash back / no-fee ----
+ {id:'cfu', name:'Chase Freedom Unlimited', issuer:'Chase', net:'chase', type:'personal', fee:0, milFee:0, cur:'Chase UR',
+  earn:'1.5x everything · 3x dining/drugstores', purpose:'No-fee catch-all that feeds UR when paired with Sapphire',
+  tags:['flat','starter'], lounge:false, benefits:[{l:'Cashback rewards',v:0}], est:'~$150–$400',
+  offer:O('$200', 500, 3, 'normal', 'DoC 8/8/26', 'branch variants exist'), typical:'$150–$250', elig:'Subject to Chase 5/24'},
+ {id:'flex', name:'Chase Freedom Flex', issuer:'Chase', net:'chase', type:'personal', fee:0, milFee:0, cur:'Chase UR',
+  earn:'5x rotating categories', purpose:'Quarterly 5x category earner for the UR stack',
+  tags:['flat','starter'], lounge:false, benefits:[], est:'~$150–$300', offer:null, typical:'$200', elig:'Subject to Chase 5/24'},
+ {id:'dc', name:'Citi Double Cash', issuer:'Citi', net:'citi', type:'personal', fee:0, milFee:null, cur:'Cash/TY',
+  earn:'2% everywhere', purpose:'Flat-rate anchor; converts to TY with Strata', tags:['flat','starter'], lounge:false, benefits:[{l:'2% cashback',v:0}], est:'~$150–$400',
+  offer:null, typical:'$200', elig:'—'},
+ {id:'savor', name:'Capital One Savor', issuer:'Capital One', net:'c1', type:'personal', fee:0, milFee:null, cur:'Cash',
+  earn:'3% dining/entertainment/groceries', purpose:'No-fee food & fun earner', tags:['dining','grocery'], lounge:false, benefits:[], est:'~$150–$300',
+  offer:O('$250', 500, 3, 'normal', 'DoC 8/8/26'), typical:'$200–$300', elig:'—'},
+ // ---- hotels ----
+ {id:'hyatt', name:'World of Hyatt Card', issuer:'Chase', net:'chase', type:'personal', fee:95, milFee:0, cur:'Hyatt',
+  earn:'Hyatt earning + free night', purpose:'Highest-value hotel currency; annual free night',
+  tags:['hotel'], lounge:false, benefits:[{l:'Annual Free Night (Cat 1–4)',v:0}], est:'~$200–$500',
+  offer:O('up to 75,000 pts', 5000, 3, 'elevated', 'TPG 8/2/26'), typical:'Commonly 30K–60K', elig:'Subject to Chase 5/24'},
+ {id:'surpass', name:'Hilton Honors Surpass', issuer:'Amex', net:'amex', type:'personal', fee:150, milFee:0, cur:'Hilton',
+  earn:'12x Hilton', purpose:'Hilton Gold status + free-night path', tags:['hotel'], lounge:false, benefits:[{l:'Free Night after $15k spend',v:0}], est:'~$200–$500',
+  offer:null, typical:'130K–170K Hilton', elig:'Amex lifetime language'},
+ {id:'aspire', name:'Hilton Honors Aspire', issuer:'Amex', net:'amex', type:'personal', fee:550, milFee:0, cur:'Hilton',
+  earn:'14x Hilton', purpose:'Hilton Diamond status + resort credits + free night', tags:['hotel','premium'], lounge:false,
+  benefits:[{l:'Hilton Credit ($50/qtr)',v:200},{l:'Free Night Reward',v:0},{l:'Resort Credit',v:200}], est:'~$600–$2,000+',
+  offer:null, typical:'150K–175K Hilton', elig:'Amex lifetime language'},
+ {id:'brilliant', name:'Marriott Bonvoy Brilliant', issuer:'Amex', net:'amex', type:'personal', fee:650, milFee:0, cur:'Marriott',
+  earn:'6x Marriott', purpose:'Marriott Platinum status + dining credits + 85K free night', tags:['hotel','premium'], lounge:false,
+  benefits:[{l:'Dining Credit ($25/mo)',v:300},{l:'Free Night Award (85k)',v:0},{l:'Global Entry / TSA',v:0}], est:'~$400–$900',
+  offer:O('150,000 pts + $250 credit', null, null, 'elevated', 'DoC 8/8/26', 'no lifetime language reported on this offer'), typical:'Commonly 95K–150K', elig:'Amex lifetime language usually applies — this offer reportedly without it; verify'},
+ {id:'ihg', name:'IHG One Rewards Premier', issuer:'Chase', net:'chase', type:'personal', fee:99, milFee:0, cur:'IHG',
+  earn:'IHG earning + 4th-night-free', purpose:'IHG free nights + Platinum status', tags:['hotel'], lounge:false, benefits:[{l:'Anniversary Free Night',v:0}], est:'~$200–$500',
+  offer:null, typical:'140K–175K IHG', elig:'Subject to Chase 5/24'},
+ // ---- airlines ----
+ {id:'delta-gold', name:'Delta SkyMiles Gold', issuer:'Amex', net:'amex', type:'personal', fee:150, milFee:0, cur:'Delta',
+  earn:'2x Delta/dining/groceries', purpose:'Free checked bags + Delta miles', tags:['airline'], air:'Delta', lounge:false, benefits:[{l:'Delta flight credit path',v:0}], est:'~$150–$400',
+  offer:O('90,000 miles', null, null, 'elevated', 'DoC 8/8/26'), typical:'Commonly 40K–70K', elig:'Amex lifetime language'},
+ {id:'delta-plat', name:'Delta SkyMiles Platinum', issuer:'Amex', net:'amex', type:'personal', fee:350, milFee:0, cur:'Delta',
+  earn:'Delta earning + companion cert', purpose:'Annual companion certificate strategy', tags:['airline'], air:'Delta', lounge:false, benefits:[{l:'Companion Certificate (main cabin)',v:0}], est:'~$250–$600',
+  offer:O('100,000 miles', null, null, 'elevated', 'DoC 8/8/26'), typical:'Commonly 50K–90K', elig:'Amex lifetime language'},
+ {id:'delta-res', name:'Delta SkyMiles Reserve', issuer:'Amex', net:'amex', type:'personal', fee:650, milFee:0, cur:'Delta',
+  earn:'Delta earning + Sky Club', purpose:'Delta Sky Club access + first-class companion cert', tags:['airline','lounge','premium'], air:'Delta', lounge:true, benefits:[{l:'Companion Certificate',v:0}], est:'~$300–$800',
+  offer:O('125,000 miles', null, null, 'elevated', 'DoC 8/8/26'), typical:'Commonly 60K–100K', elig:'Amex lifetime language'},
+ {id:'united-exp', name:'United Explorer', issuer:'Chase', net:'chase', type:'personal', fee:150, milFee:0, cur:'United',
+  earn:'2x United/dining/hotels', purpose:'Free bags + expanded award availability', tags:['airline'], air:'United', lounge:false, benefits:[{l:'2 United Club passes/yr',v:0}], est:'~$150–$400',
+  offer:null, typical:'50K–80K miles', elig:'Subject to Chase 5/24'},
+ {id:'united-club', name:'United Club Infinite', issuer:'Chase', net:'chase', type:'personal', fee:695, milFee:0, cur:'United',
+  earn:'United earning + Club membership', purpose:'Full United Club lounge membership', tags:['airline','lounge','premium'], air:'United', lounge:true, benefits:[{l:'United Club Membership',v:0}], est:'~$400–$900',
+  offer:null, typical:'80K–100K miles', elig:'Subject to Chase 5/24'},
+ {id:'sw-priority', name:'Southwest Rapid Rewards Priority', issuer:'Chase', net:'chase', type:'personal', fee:149, milFee:0, cur:'Southwest',
+  earn:'Southwest earning', purpose:'Companion-Pass progress + travel credits', tags:['airline'], air:'Southwest', lounge:false, benefits:[{l:'$75 SW travel credit',v:75}], est:'~$150–$400',
+  offer:null, typical:'50K–85K pts', elig:'Subject to Chase 5/24'},
+ {id:'aa-plat', name:'Citi / AAdvantage Platinum Select', issuer:'Citi', net:'citi', type:'personal', fee:99, milFee:null, cur:'American',
+  earn:'2x AA/dining/gas', purpose:'AA miles + free bags', tags:['airline'], air:'American', lounge:false, benefits:[{l:'Preferred boarding',v:0}], est:'~$150–$400',
+  offer:null, typical:'50K–75K miles', elig:'Verify current offer and military fee policy with Citi'},
+ // ---- business ----
+ {id:'bbp', name:'Amex Blue Business Plus', issuer:'Amex', net:'amex', type:'business', fee:0, milFee:0, cur:'Amex MR',
+  earn:'2x everything (to $50k/yr)', purpose:'No-fee MR engine for business spend', tags:['biz','flat','transfer'], lounge:false, benefits:[], est:'~$150–$400',
+  offer:O('75,000 MR', 15000, null, 'elevated', 'DoC 8/8/26', 'reported YMMV — may not appear for everyone'), typical:'15K–50K MR', elig:'Requires legitimate business activity (sole proprietors may qualify)'},
+ {id:'biz-gold', name:'Amex Business Gold', issuer:'Amex', net:'amex', type:'business', fee:375, milFee:0, cur:'Amex MR',
+  earn:'4x top 2 categories', purpose:'Category-adaptive MR earning for business', tags:['biz','transfer'], lounge:false, benefits:[], est:'~$200–$500',
+  offer:O('up to 200,000 MR', 15000, 3, 'elevated', 'TPG 8/2/26'), typical:'70K–130K MR', elig:'Business required; Amex lifetime language'},
+ {id:'biz-plat', name:'Amex Business Platinum', issuer:'Amex', net:'amex', type:'business', fee:895, milFee:0, cur:'Amex MR',
+  earn:'5x flights · premium credits', purpose:'Premium travel benefits on the business side', tags:['biz','travel','lounge','premium','transfer'], lounge:true, benefits:[{l:'Business credit set',v:800}], est:'~$800–$1,500+',
+  offer:O('up to 300,000 MR', 20000, 3, 'elevated', 'TPG 8/2/26'), typical:'120K–190K MR', elig:'Business required; high spend requirement — check capacity'},
+ {id:'ink-pref', name:'Chase Ink Business Preferred', issuer:'Chase', net:'chase', type:'business', fee:95, milFee:0, cur:'Chase UR',
+  earn:'3x travel/shipping/ads', purpose:'Big UR bonuses on the business side', tags:['biz','travel','transfer'], lounge:false, benefits:[], est:'~$300–$800',
+  offer:O('100,000 UR', 8000, 3, 'normal', 'DoC 8/8/26'), typical:'90K–120K UR', elig:'Business required; Ink cards typically don’t count toward 5/24 but 5/24 applies to approval'},
+ {id:'ink-cash', name:'Chase Ink Business Cash', issuer:'Chase', net:'chase', type:'business', fee:0, milFee:0, cur:'Chase UR',
+  earn:'5% office/internet categories', purpose:'No-fee business category earner', tags:['biz','flat'], lounge:false, benefits:[], est:'~$200–$500',
+  offer:O('$1,000', 8000, 4, 'elevated', 'TPG 8/2/26'), typical:'$350–$750', elig:'Business required'},
 ];
-const CCO_META = { verified:'2026-01', source:'Captain Kap Military Financial Readiness Toolkit card table',
-  offerNote:'Welcome offers change frequently — verify the current offer with the issuer before applying.' };
-const CCO_FEATURES = ['My Cards dashboard — your whole wallet in one place','Benefits tracker — every credit, tracked to the dollar',
-  '"Benefits you\'re missing" gap finder','Side-by-side card comparison','Personalized card roadmap with reasoning',
-  'Welcome-offer tracker with pace math','Category-by-category spending strategy','Annual fee KEEP/REVIEW analysis',
-  'Downloadable Excel/Google Sheets tracking workbook'];
-
+const CCO_META = { verified: CCO_VER.checked, source: CCO_VER.srcs,
+  offerNote:'Offers change frequently and vary by applicant (Amex says so explicitly) — always verify the live offer before applying.' };
+const CCO_STRATS = {
+  luxury:{label:'Maximum Travel Luxury', blurb:'Premium cards, lounges, hotel & airline benefits first.'},
+  points:{label:'Maximum Points', blurb:'Chase welcome bonuses and transferable currencies aggressively (but responsibly).'},
+  benefits:{label:'Maximum Benefits', blurb:'Credits, status, and lifestyle perks over raw points.'},
+  balanced:{label:'Balanced', blurb:'Strong value with fewer cards and lower total fees.'}
+};
+const CCO_FEATURES = ['Personalized card path with reasoning, phases & timing','Current vs. typical welcome offers ("apply now" vs. "wait") — verified '+CCO_VER.checked,
+  'My Cards with auto-filled card profiles','Benefits tracker + "money on the table" finder','Welcome-offer optimizer with pace & status',
+  'Dynamic wallet strategy (incl. active-offer priority)','Portfolio analysis: strengths, gaps, utilization','Ultimate Collection: what’s worth it FOR YOU',
+  'Printable "My Credit Card Plan" + Excel workbook'];
 const CCO = {
   state: null, view: 'dash',
   load(){ try { this.state = JSON.parse(localStorage.getItem('kap_cco_state')) || {cards:[], profile:{}}; }
-          catch(e){ this.state = {cards:[], profile:{}}; } },
+          catch(e){ this.state = {cards:[], profile:{}}; }
+          this.state.cards = this.state.cards || []; this.state.profile = this.state.profile || {}; },
   save(){ try { localStorage.setItem('kap_cco_state', JSON.stringify(this.state)); } catch(e){} },
   db(id){ return CCO_DB.filter(c => c.id===id)[0]; },
+  mil(){ return (this.state.profile.milStatus||'').indexOf('Active')===0; },
   fee(c){ const d = c.dbId ? this.db(c.dbId) : null;
-    return this.state.profile.military && d ? d.milFee : (d ? d.fee : (+c.fee||0)); },
+    if (!d) return +c.fee||0;
+    if (this.mil() && d.milFee===0) return 0;
+    return d.fee; },
   benefits(c){ const d = c.dbId ? this.db(c.dbId) : null; return d ? d.benefits.filter(b=>b.v>0) : []; },
   usedFor(c){ const u = c.used||{}; return this.benefits(c).reduce((a,b,i)=>a+(+u[i]||0),0); },
   potentialFor(c){ return this.benefits(c).reduce((a,b)=>a+b.v,0); }
@@ -1394,18 +1493,129 @@ const CCO = {
 })();
 
 
-/* ---------------- CCO renderer ---------------- */
+/* ---------------- CCO v2 renderer + engines ---------------- */
+function ccoUsd(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
+function ccoCardOpts(sel, filter){ return '<option value="">— pick a card —</option>' +
+  CCO_DB.filter(filter||(()=>true)).map(c=>'<option value="'+c.id+'"'+(sel===c.id?' selected':'')+'>'+c.name+'</option>').join(''); }
+function ccoOfferLine(d){
+  if (!d.offer || !d.offer.bonus) return '<span style="color:var(--muted)">Current offer: verify with issuer'+(d.offNote?' — '+d.offNote:'')+'</span>' +
+    (d.typical?'<br><span style="color:var(--muted)">Typical: '+d.typical+'</span>':'<br><span style="color:var(--muted)">Typical offer data unavailable</span>');
+  const q = d.offer.quality==='elevated' ? ' <span class="cco-hot">🔥 Elevated</span>' : (d.offer.quality?' <span class="cco-norm">Normal</span>':'');
+  return '<b>Current: '+d.offer.bonus+'</b>'+q+
+    (d.offer.spend?' · '+ccoUsd(d.offer.spend)+(d.offer.months?' in '+d.offer.months+' mo':''):'') +
+    '<br><span style="color:var(--muted)">Typical: '+(d.typical||'data unavailable')+' · verified '+CCO_META.verified+' ('+d.offer.src+')'+(d.offer.note?' · '+d.offer.note:'')+'</span>';
+}
+function ccoActiveOffers(){ return CCO.state.cards.filter(c=>+c.offerSpend>0 && (+c.offerDone||0) < +c.offerSpend); }
+function ccoOfferStatus(c){
+  const done=+c.offerDone||0, req=+c.offerSpend, pct=done/req;
+  let days=null; if (c.offerDeadline){ const d=new Date(c.offerDeadline+'T12:00:00'); if(!isNaN(d)) days=Math.max(0,Math.ceil((d-new Date())/86400000)); }
+  let status='🟢 On Track';
+  if (days!==null && c.offerStart!==undefined){}
+  if (days!==null){
+    const totalDays = days + 1; const paceNeeded=(req-done)/Math.max(1,days);
+    if (days<=7 && pct<0.85) status='🔴 At Risk';
+    else if (pct < 1 - (days/90)) status = (pct < 0.5 && days < 30) ? '🔴 At Risk' : '🟡 Falling Behind';
+  }
+  return { done:done, req:req, pct:Math.min(100,pct*100), days:days, pace: days>0?(req-done)/days:null, status:status };
+}
+
+/* -------- acquisition engine: phased, strategy-aware, eligibility-aware -------- */
+function ccoPath(){
+  const p = CCO.state.profile, cards = CCO.state.cards;
+  const ownedIds = cards.map(c=>c.dbId).filter(Boolean);
+  const owned = ownedIds.map(id=>CCO.db(id));
+  const mil = CCO.mil();
+  const over524 = p.opened24==='5 or more';
+  const biz = p.business==='Yes';
+  const spendCap = {'Under $1,000':1000,'$1,000–$3,000':3000,'$3,000–$6,000':6000,'$6,000+':12000}[p.spend]||3000;
+  const strat = p.strategy||'balanced';
+  const has = tag => owned.some(d=>d.tags.includes(tag));
+  const steps=[], notes=[];
+  function elig(d){
+    if (ownedIds.includes(d.id)) return null;
+    if (d.type==='business' && !biz) return null;
+    if (d.net==='chase' && over524){ return {blocked:'Likely blocked by Chase 5/24 (you opened 5+ cards in 24 months) — revisit once you are under 5/24. Verify with Chase.'}; }
+    return {ok:true};
+  }
+  function spendWarn(d){
+    if (d.offer && d.offer.spend && d.offer.months){
+      const capacity = spendCap * d.offer.months;
+      if (d.offer.spend > capacity*0.8) return ' ⚠ The '+ccoUsd(d.offer.spend)+' requirement is high for your stated spending — only pursue with already-planned purchases, or wait for a lower-spend offer.';
+    }
+    return '';
+  }
+  function add(phase, id, why){
+    const d = CCO.db(id); if (!d || steps.length>=8 || steps.some(x=>x.card.id===id)) return;
+    const e = elig(d); if (!e) return;
+    if (e.blocked){ notes.push(d.name+': '+e.blocked); return; }
+    steps.push({phase:phase, card:d, why:why + spendWarn(d)});
+  }
+  const milWaiver = mil ? ' With your military status the annual fee is typically waived under SCRA/MLA (verify your eligibility with the issuer) — the premium math changes completely.' : '';
+  // PHASE 1 — core ecosystem
+  if (!has('transfer')){
+    if (!over524) add('Phase 1 · Core points ecosystem','csp','A proven first transferable-points card: low fee, strong partners, and it unlocks the whole Chase UR ecosystem for later cards. Its recent 100K offer just ended — check whether an elevated offer is live before applying.');
+    else add('Phase 1 · Core points ecosystem','strata','With Chase 5/24 blocking you for now, Citi ThankYou gives you a transferable-points base while your new-card count ages off.');
+  }
+  add('Phase 1 · Core points ecosystem','amex-gold','Your food spending becomes a points engine: 4x on dining and U.S. supermarkets, and the current up-to-100K offer is elevated vs. its typical 60K–90K.');
+  // PHASE 2 — premium travel
+  if (strat!=='balanced' || mil){
+    if (mil) add('Phase 2 · Premium travel','amex-plat','The flagship premium card: lounges, hotel status, and heavy credits.'+milWaiver+' The current up-to-175K offer is elevated vs. its usual range.');
+    else if (p.feeTol==='Any — if the value is there' || strat==='luxury') add('Phase 2 · Premium travel','csr','Premium travel with a 100K elevated offer, $300 travel credit, and top-tier protections — worth it if your travel volume uses the benefits.');
+    else add('Phase 2 · Premium travel','venture-x','The value-premium option: $395 fee largely offset by credits, with lounge access. Verify Capital One’s current offer and military fee policy.');
+  }
+  // PHASE 3 — points expansion / business
+  if (biz){
+    add('Phase 3 · Business points','ink-pref','Business spending earns its own welcome bonuses without touching your personal 5/24 count much — 100K UR for a $95 fee is one of the strongest standing offers.');
+    if (strat==='points') add('Phase 3 · Business points','biz-gold','Adaptive 4x categories and an elevated up-to-200K offer — but mind the $15K/3mo requirement against your real business spend.');
+  }
+  // PHASE 4 — hotel strategy
+  const hotelPick = {'Hyatt':'hyatt','Hilton':'aspire','Marriott':'brilliant','IHG':'ihg'}[p.hotel] || (strat==='luxury'?'aspire':'hyatt');
+  if (!has('hotel') && p.hotel!=='No preference') add('Phase 4 · Hotel strategy', hotelPick,
+    (p.hotel? 'You prefer '+p.hotel : 'Hyatt points are the highest-value hotel currency')+' — this card adds status, credits, and an annual free-night pattern that fits PCS/leave travel.'+(CCO.db(hotelPick).net==='amex'&&mil?milWaiver:''));
+  // PHASE 5 — airline strategy
+  const airPick = {'Delta': mil?'delta-res':'delta-gold','United':'united-exp','Southwest':'sw-priority','American':'aa-plat'}[p.airline];
+  if (airPick && !owned.some(d=>d.air===p.airline)) add('Phase 5 · Airline strategy', airPick,
+    'You fly '+p.airline+' — this adds bags/boarding, miles, and (at the premium tier) lounge access on your home airline.'+(CCO.db(airPick).net==='amex'&&mil?milWaiver:''));
+  // PHASE 6 — optimization
+  if (strat!=='balanced' && !ownedIds.includes('amex-schwab') && (ownedIds.includes('amex-plat')||steps.some(s=>s.card.id==='amex-plat')))
+    add('Phase 6 · Optimization','amex-schwab','Once you hold a large MR balance, the Schwab Platinum unlocks cashing points into your brokerage — the exit valve of the MR strategy. Same fee treatment as Platinum.');
+  if (!has('flat')) add('Phase 6 · Optimization', over524?'dc':'cfu','A no-fee flat-rate anchor catches everything without a category — and keeps earning while other cards cycle.');
+  const maxSteps = strat==='balanced'?5:8;
+  return { steps: steps.slice(0,maxSteps), notes:notes };
+}
+
+/* -------- ultimate collection categorizer -------- */
+function ccoCollection(){
+  const p = CCO.state.profile, ownedIds = CCO.state.cards.map(c=>c.dbId).filter(Boolean);
+  const owned = ownedIds.map(id=>CCO.db(id));
+  const path = ccoPath().steps.map(s=>s.card.id);
+  const mil = CCO.mil(), biz = p.business==='Yes', over524 = p.opened24==='5 or more';
+  const out = { high:[], maybe:[], situational:[], skip:[] };
+  CCO_DB.forEach(d => {
+    if (ownedIds.includes(d.id)) return;
+    if (path.includes(d.id)){ out.high.push([d,'In your recommended path.']); return; }
+    if (d.type==='business' && !biz){ out.situational.push([d,'Business card — relevant only if you have legitimate business activity.']); return; }
+    if (d.net==='chase' && over524){ out.situational.push([d,'Blocked by 5/24 for now — revisit later.']); return; }
+    if (d.air && p.airline && d.air!==p.airline && p.airline!=='No preference'){ out.skip.push([d,'You fly '+p.airline+', not '+d.air+' — a mismatch fee.']); return; }
+    if (d.tags.includes('hotel') && p.hotel && p.hotel!=='No preference' && !d.name.toLowerCase().includes((p.hotel||'').toLowerCase()) && d.id!=='hyatt'){ out.skip.push([d,'Doesn’t match your '+p.hotel+' preference.']); return; }
+    if (d.lounge && owned.some(o=>o.lounge)){ out.skip.push([d,'You already have lounge access — this duplicates a benefit you hold.']); return; }
+    if (d.fee>=395 && !mil && (p.feeTol==='$0 only'||p.feeTol==='Up to $100')){ out.skip.push([d,'Fee exceeds your stated tolerance without a military waiver.']); return; }
+    if (d.offer && d.offer.quality==='elevated'){ out.maybe.push([d,'Elevated offer right now ('+d.offer.bonus+') — worth a look if it fits your spending.']); return; }
+    out.situational.push([d,'Fine card, no urgent reason for your profile right now.']);
+  });
+  return out;
+}
+
 function ccoRender(){
   const host = $('cco-app');
   if (!host) return;
-  const unlocked = Entitlements.has('credit_card_optimization');
-  if (!unlocked){ ccoRenderLocked(host); return; }
+  if (!Entitlements.has('credit_card_optimization')){ ccoRenderLocked(host); return; }
   CCO.load();
-  const T = [['dash','Dashboard'],['cards','My Cards'],['benefits','Benefits'],['missing','Opportunities'],['compare','Compare'],
-             ['path','Card Path'],['offers','Welcome Offers'],['strategy','Spending Strategy'],['fees','Fee Review'],['wb','Workbook']];
+  const T = [['dash','Dashboard'],['cards','My Cards'],['benefits','Benefits'],['path','My Path'],['collection','Collection'],
+             ['offers','Welcome Offers'],['wallet','Wallet Strategy'],['compare','Compare'],['portfolio','Portfolio'],['wb','Workbook']];
   let h = '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px">' +
     '<span class="kap-fullbadge-site">✓ Credit Card Optimization Unlocked</span>' +
-    '<span style="font-size:.8rem;color:var(--muted)">Card data last verified ' + CCO_META.verified + ' — verify current terms with each issuer.</span></div>';
+    '<span style="font-size:.8rem;color:var(--muted)">Offers verified '+CCO_META.verified+' ('+CCO_META.source+') — '+CCO_META.offerNote+'</span></div>';
   h += '<div class="gtabs" style="margin-bottom:22px">' + T.map(t =>
     '<button type="button" class="gtab'+(CCO.view===t[0]?' on':'')+'" data-ccotab="'+t[0]+'">'+t[1]+'</button>').join('') + '</div>';
   h += '<div id="cco-view">' + ccoView(CCO.view) + '</div>';
@@ -1415,37 +1625,28 @@ function ccoRender(){
 }
 
 function ccoRenderLocked(host){
-  const sample = CCO_DB.slice(0,3);
+  const sample = [CCO.db('amex-gold'), CCO.db('amex-plat'), CCO.db('csr')];
   host.innerHTML =
     '<div class="kick" style="text-align:center">PREVIEW · WHAT\'S INSIDE</div>' +
-    '<h2 style="text-align:center">A Look At The System</h2>' +
+    '<h2 style="text-align:center">Build Your Credit-Card Strategy — Not Just Your Wallet</h2>' +
     '<div class="two" style="align-items:stretch;margin-top:24px">' +
-      '<div class="tool"><h3>The Card Database <span class="cco-ex">EXAMPLE</span></h3>' +
-      '<div class="note">' + CCO_DB.length + ' cards with fees, military fee treatment, credits, and est. value — last verified ' + CCO_META.verified + '.</div>' +
-      '<table class="cco-tbl">' + sample.map(c =>
-        '<tr><td><b>'+c.name+'</b><br><span style="color:var(--muted);font-size:.78rem">'+c.headline+'</span></td>' +
-        '<td style="text-align:right"><s style="color:var(--muted)">$'+c.fee+'</s> <b style="color:#16803c">$'+c.milFee+' mil*</b><br><span style="color:var(--muted);font-size:.78rem">'+c.est+'</span></td></tr>').join('') + '</table>' +
-      '<p style="font-size:.68rem;color:var(--muted)">*Typical fee for eligible active duty under SCRA/MLA — eligibility varies; verify with issuer.</p></div>' +
-      '<div class="tool"><h3>Benefit Tracking <span class="cco-ex">EXAMPLE</span></h3>' +
-      '<div class="note">Every credit tracked — used vs. remaining.</div>' +
-      '<div style="font-size:.88rem"><b>AMEX Gold</b> · fee $0 (military)<br>' +
-      'Potential tracked credits: <b>$324/yr</b><div class="bar-track" style="margin:8px 0"><div class="bar-fill" style="width:38%"></div></div>' +
-      'Used: $124 · <b style="color:var(--gold)">$200 remaining</b></div>' +
-      '<div class="note" style="margin-top:12px">Values are estimates — worth what you actually use.</div>' +
-      '<h3 style="margin-top:18px">Your Card Roadmap <span class="cco-ex">CONCEPT</span></h3>' +
-      '<div style="font-size:.85rem;color:var(--muted)">Step 1 → starter travel card · Step 2 → premium card once fee-waived · Step 3 → hotel card for your PCS travel pattern — each step with the why, the offer plan, and the timing.</div></div>' +
+      '<div class="tool"><h3>Current vs. Typical Offers <span class="cco-ex">EXAMPLE</span></h3>' +
+      '<div class="note">'+CCO_DB.length+' cards tracked · verified '+CCO_META.verified+'</div>' +
+      sample.map(d=>'<div style="padding:10px 0;border-bottom:1px dashed var(--line);font-size:.85rem"><b>'+d.name+'</b><br>'+ccoOfferLine(d)+'</div>').join('') + '</div>' +
+      '<div class="tool"><h3>Your Path <span class="cco-ex">CONCEPT</span></h3>' +
+      '<div class="note">Phased, personalized, with reasoning:</div>' +
+      '<div style="font-size:.85rem;color:var(--muted)">Phase 1 → core points ecosystem<br>Phase 2 → premium travel (military fee-waiver aware)<br>Phase 3 → business points (if eligible)<br>Phase 4 → your hotel strategy<br>Phase 5 → your airline strategy<br>Phase 6 → optimization & cash-out<br><br>Each step: why this card, why now, which offer to target, what to spend on it, and when to move on.</div></div>' +
     '</div>' +
     '<div class="kap-lockpanel" id="cco-lock">' +
       '<div class="kick">🔒 FULL CREDIT CARD OPTIMIZATION ACCESS</div>' +
       '<h2 style="margin:4px 0 8px">Unlock The Complete System — $47</h2>' +
-      '<p style="color:var(--muted);max-width:560px;margin:0 auto 14px">Not a list of cards — your personal credit-card command center:</p>' +
       '<ul class="cco-feat">' + CCO_FEATURES.map(f=>'<li>'+f+'</li>').join('') + '</ul>' +
       '<button class="btn gold buy" data-product="Credit Card Optimization System ($47)">Get Full Access — $47</button>' +
       '<div style="margin-top:16px;font-size:.85rem;color:var(--muted)">Already purchased? ' +
       '<input id="cco-code" placeholder="Access code" style="padding:9px 12px;border:1px solid var(--line);border-radius:6px;font:inherit;margin:0 8px">' +
       '<button type="button" class="btn navy" id="cco-go" style="padding:9px 16px">Unlock</button>' +
       '<div id="cco-err" style="color:#b3202c;font-size:.78rem;font-weight:600;min-height:1em;margin-top:8px"></div></div>' +
-      '<p style="font-size:.72rem;color:var(--muted);margin-top:12px">Separate product from the $27 toolkit — one doesn\'t include the other. Access code arrives with purchase.</p>' +
+      '<p style="font-size:.72rem;color:var(--muted);margin-top:12px">Separate product from the $27 toolkit. Rewards only have value when balances are paid in full — this system never encourages spending beyond your normal budget.</p>' +
     '</div>';
   const go = host.querySelector('#cco-go');
   go.onclick = () => Entitlements.tryUnlock('credit_card_optimization', host.querySelector('#cco-code').value, host.querySelector('#cco-err'));
@@ -1453,184 +1654,262 @@ function ccoRenderLocked(host){
 }
 
 function ccoStat(label, val){ return '<div class="cco-stat"><div class="n">'+val+'</div><div class="l">'+label+'</div></div>'; }
-function ccoUsd(n){ return '$' + Math.round(n).toLocaleString('en-US'); }
-function ccoCardOpts(sel){ return '<option value="">— pick a card —</option>' + CCO_DB.map(c=>'<option value="'+c.id+'"'+(sel===c.id?' selected':'')+'>'+c.name+'</option>').join(''); }
+function ccoProfileForm(p){
+  const sel = (id,label,opts,cur) => '<div class="field"><label>'+label+'</label><select id="'+id+'">'+
+    opts.map(o=>'<option'+(cur===o?' selected':'')+'>'+o+'</option>').join('')+'</select></div>';
+  return '<form class="tool" id="cco-pathform"><h3>Your Profile</h3><div class="note">The engine reads these + your cards. Change anything, rebuild instantly.</div>' +
+    '<div class="field"><label>Strategy</label><select id="cp-strategy">'+Object.entries(CCO_STRATS).map(([k,v])=>'<option value="'+k+'"'+(p.strategy===k?' selected':'')+'>'+v.label+' — '+v.blurb+'</option>').join('')+'</select></div>' +
+    '<div class="two" style="gap:14px">'+sel('cp-score','Credit score range',['','Under 650','650–699','700–749','750+'],p.score)+sel('cp-spend','Monthly card spending',['','Under $1,000','$1,000–$3,000','$3,000–$6,000','$6,000+'],p.spend)+'</div>' +
+    '<div class="two" style="gap:14px">'+sel('cp-opened','Personal cards opened in last 24 months',['','0–1','2–4','5 or more'],p.opened24)+sel('cp-fee','Annual-fee tolerance (without waivers)',['','$0 only','Up to $100','Up to $400','Any — if the value is there'],p.feeTol)+'</div>' +
+    '<div class="two" style="gap:14px">'+sel('cp-air','Preferred airline',['','Delta','United','Southwest','American','No preference'],p.airline)+sel('cp-hotel','Preferred hotel program',['','Hyatt','Hilton','Marriott','IHG','No preference'],p.hotel)+'</div>' +
+    '<div class="two" style="gap:14px">'+sel('cp-mil','Military status',['','Active duty / Guard / Reserve (fee waivers may apply)','Veteran / separated','Not military'],p.milStatus)+sel('cp-biz','Do you have legitimate business/self-employment activity?',['','No','Yes'],p.business)+'</div>' +
+    '<button class="btn gold" type="submit">Build My Path →</button></form>';
+}
 
 function ccoView(v){
-  const st = CCO.state, cards = st.cards;
-  const mil = !!st.profile.military;
+  const st = CCO.state, cards = st.cards, p = st.profile;
   if (v==='dash'){
     const fees = cards.reduce((a,c)=>a+CCO.fee(c),0);
     const pot = cards.reduce((a,c)=>a+CCO.potentialFor(c),0);
     const used = cards.reduce((a,c)=>a+CCO.usedFor(c),0);
-    const offers = cards.filter(c=>+c.offerSpend>0);
-    const prog = offers.length ? Math.round(offers.reduce((a,c)=>a+Math.min(1,(+c.offerDone||0)/+c.offerSpend),0)/offers.length*100) : 0;
-    return '<div class="cco-stats">' + ccoStat('Cards owned', cards.length) + ccoStat('Annual fees'+(mil?' (military)':''), ccoUsd(fees)) +
-      ccoStat('Tracked benefit value', ccoUsd(pot)) + ccoStat('Benefits used', ccoUsd(used)) +
-      ccoStat('Benefits remaining', ccoUsd(Math.max(0,pot-used))) + ccoStat('Active welcome offers', offers.length) +
-      (offers.length? ccoStat('Avg. offer progress', prog+'%') : '') + '</div>' +
-      (cards.length===0 ? '<div class="tool" style="text-align:center"><h3>Start with your wallet</h3><div class="note">Add the cards you already hold — everything else builds from there.</div><button class="btn gold" data-ccotab-jump="cards">Add My Cards →</button></div>'
-      : '<p style="font-size:.85rem;color:var(--muted)">Jump into any section above — your data flows through all of them. Prefer offline? Grab the workbook in the Workbook tab.</p>');
+    const limits = cards.reduce((a,c)=>a+(+c.limit||0),0);
+    const bal = cards.reduce((a,c)=>a+(+c.balance||0),0);
+    const offers = ccoActiveOffers();
+    return '<div class="cco-stats">' + ccoStat('Cards owned', cards.length) + ccoStat('Annual fees'+(CCO.mil()?' (military)':''), ccoUsd(fees)) +
+      ccoStat('Tracked benefit value', ccoUsd(pot)) + ccoStat('Potential unused value', ccoUsd(Math.max(0,pot-used))) +
+      ccoStat('Active welcome offers', offers.length) +
+      (limits? ccoStat('Total credit limit', ccoUsd(limits)) : '') +
+      (limits? ccoStat('Utilization', Math.round(bal/limits*100)+'%') : '') + '</div>' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap">' +
+      (cards.length===0 ? '<button class="btn gold" data-ccotab-jump="cards">Step 1: Add My Cards →</button>' :
+        (!p.strategy ? '<button class="btn gold" data-ccotab-jump="path">Step 2: Build My Path →</button>' :
+         '<button class="btn gold" data-ccotab-jump="path">View My Path →</button>')) +
+      '<button class="btn navy" type="button" id="cco-print">🖨 Print / Save My Credit Card Plan</button></div>';
   }
   if (v==='cards'){
     let h = cards.map((c,i) => {
       const d = c.dbId ? CCO.db(c.dbId) : null;
+      const util = (+c.limit>0) ? Math.round((+c.balance||0)/+c.limit*100) : null;
       return '<div class="tool" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">' +
-        '<div><h3 style="margin-bottom:2px">'+(d?d.name:c.name)+'</h3><div class="note" style="margin:0">'+(d?d.issuer+' · '+d.headline:'Custom card')+'</div></div>' +
+        '<div><h3 style="margin-bottom:2px">'+(d?d.name:c.name)+'</h3><div class="note" style="margin:0">'+(d? d.issuer+' · '+d.earn : 'Custom card')+'</div>' +
+        (d? '<div style="font-size:.8rem;margin-top:6px"><b>Why you have it:</b> '+d.purpose+'</div>':'') + '</div>' +
         '<div style="text-align:right"><div style="font-family:Oswald;font-size:1.2rem;color:var(--gold)">'+ccoUsd(CCO.fee(c))+'/yr</div>' +
-        (mil&&d&&d.fee>0?'<div style="font-size:.7rem;color:#16803c">military fee (reg. '+ccoUsd(d.fee)+')</div>':'') + '</div></div>' +
-        '<div style="font-size:.8rem;color:var(--muted);margin-top:6px">'+ (c.opened?'Opened '+c.opened+' · ':'') + (c.limit?'Limit '+ccoUsd(c.limit)+' · ':'') + (c.notes||'') + '</div>' +
-        (+c.offerSpend>0 ? '<div style="font-size:.8rem;margin-top:6px">Welcome offer: '+ccoUsd(c.offerDone||0)+' / '+ccoUsd(c.offerSpend)+' by '+(c.offerDeadline||'—')+'</div>':'') +
+        (CCO.mil()&&d&&d.milFee===0&&d.fee>0?'<div style="font-size:.7rem;color:#16803c">military waiver (reg. '+ccoUsd(d.fee)+') — verify</div>':'') + '</div></div>' +
+        '<div style="font-size:.8rem;color:var(--muted);margin-top:6px">'+(c.opened?'Opened '+c.opened+' · ':'')+(c.limit?'Limit '+ccoUsd(c.limit)+' · ':'')+(util!==null?'Utilization '+util+'% · ':'')+(c.notes||'')+'</div>' +
+        (+c.offerSpend>0 ? '<div style="font-size:.8rem;margin-top:4px">Welcome offer: '+ccoUsd(c.offerDone||0)+' / '+ccoUsd(c.offerSpend)+(c.offerDeadline?' by '+c.offerDeadline:'')+'</div>':'') +
         '<button type="button" class="btn navy" data-cco-del="'+i+'" style="margin-top:10px;padding:7px 14px;font-size:.68rem">Remove</button></div>';
     }).join('');
-    h += '<form class="tool" id="cco-addform"><h3>Add A Card</h3><div class="note">Pick from the database (auto-fills fee & benefits) or add a custom card. Enter welcome-offer terms from YOUR approval letter — '+CCO_META.offerNote.toLowerCase()+'</div>' +
+    h += '<form class="tool" id="cco-addform"><h3>Add A Card</h3><div class="note">Pick a card — fee, earning, benefits, and purpose auto-fill. You only add what\'s personal to you. Offer terms come from YOUR approval letter.</div>' +
       '<div class="field"><label>Card</label><select id="ca-db">'+ccoCardOpts()+'<option value="__custom">Custom / other card…</option></select></div>' +
-      '<div class="field" id="ca-namewrap" style="display:none"><label>Card name</label><input id="ca-name" placeholder="Card name"></div>' +
-      '<div class="field" id="ca-feewrap" style="display:none"><label>Annual fee ($)</label><input id="ca-fee" type="number" min="0" placeholder="0"></div>' +
-      '<div class="two" style="gap:14px"><div class="field"><label>Date opened</label><input id="ca-open" placeholder="e.g. 2025-03"></div>' +
-      '<div class="field"><label>Credit limit ($)</label><input id="ca-limit" type="number" min="0"></div></div>' +
-      '<div class="two" style="gap:14px"><div class="field"><label>Welcome offer spend req. ($, optional)</label><input id="ca-ospend" type="number" min="0"></div>' +
-      '<div class="field"><label>Offer deadline (YYYY-MM-DD)</label><input id="ca-odl" placeholder="2026-11-01"></div></div>' +
-      '<div class="field"><label>Notes</label><input id="ca-notes" placeholder="Anything worth remembering"></div>' +
+      '<div id="ca-preview" style="font-size:.8rem;color:var(--muted);margin:-6px 0 12px"></div>' +
+      '<div class="field" id="ca-namewrap" style="display:none"><label>Card name</label><input id="ca-name"></div>' +
+      '<div class="field" id="ca-feewrap" style="display:none"><label>Annual fee ($)</label><input id="ca-fee" type="number" min="0"></div>' +
+      '<div class="two" style="gap:14px"><div class="field"><label>Date opened</label><input id="ca-open" placeholder="2025-03"></div>' +
+      '<div class="field"><label>Credit limit ($ — enter yours)</label><input id="ca-limit" type="number" min="0"></div></div>' +
+      '<div class="two" style="gap:14px"><div class="field"><label>Current balance ($)</label><input id="ca-bal" type="number" min="0"></div>' +
+      '<div class="field"><label>Welcome offer spend req. ($, optional)</label><input id="ca-ospend" type="number" min="0"></div></div>' +
+      '<div class="field"><label>Offer deadline (YYYY-MM-DD)</label><input id="ca-odl" placeholder="2026-11-01"></div>' +
+      '<div class="field"><label>Notes</label><input id="ca-notes"></div>' +
       '<button class="btn gold" type="submit">Add Card</button></form>';
-    return h || '';
-  }
-  if (v==='benefits'){
-    if (!cards.length) return '<div class="tool"><div class="note">Add cards first — benefits populate automatically from the database.</div></div>';
-    let h = '<p style="font-size:.8rem;color:var(--muted)">Values are estimates based on published credits — a benefit is only worth what you\'d genuinely use.</p>';
-    cards.forEach((c,i) => {
-      const bens = CCO.benefits(c); if (!bens.length && !c.dbId) return;
-      const pot = CCO.potentialFor(c), used = CCO.usedFor(c);
-      h += '<div class="tool" style="margin-bottom:14px"><h3>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</h3>' +
-        '<div class="note">Fee '+ccoUsd(CCO.fee(c))+' · potential tracked credits '+ccoUsd(pot)+'/yr</div>' +
-        bens.map((b,j) => '<div class="field" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">' +
-          '<label style="margin:0;flex:1">'+b.l+' <span style="color:var(--muted)">(est. '+ccoUsd(b.v)+')</span></label>' +
-          '<input type="number" min="0" max="'+b.v+'" value="'+((c.used||{})[j]||'')+'" placeholder="0" data-cco-used="'+i+':'+j+'" style="width:90px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit"> used</div>').join('') +
-        '<div class="bar-track"><div class="bar-fill" style="width:'+(pot?Math.min(100,used/pot*100):0)+'%"></div></div>' +
-        '<div style="font-size:.85rem;margin-top:6px">Used '+ccoUsd(used)+' · <b style="color:var(--gold)">'+ccoUsd(Math.max(0,pot-used))+' of tracked benefits remaining</b></div></div>';
-    });
     return h;
   }
-  if (v==='missing'){
-    const ownedIds = cards.map(c=>c.dbId).filter(Boolean);
-    const owned = ownedIds.map(id=>CCO.db(id));
-    const has = tag => owned.some(d=>d.tags.includes(tag));
-    const gaps = [];
-    if (!owned.some(d=>d.lounge)) gaps.push({need:'Airport lounge access', why:'Long military travel days (PCS, TDY, leave) are where lounge access earns its keep.', picks:CCO_DB.filter(d=>d.lounge)});
-    if (!has('dining') && !has('grocery')) gaps.push({need:'Dining & grocery earning', why:'Food is most households\' biggest flexible category — a dedicated earner compounds it.', picks:CCO_DB.filter(d=>d.tags.includes('dining')||d.tags.includes('grocery'))});
-    if (!has('hotel')) gaps.push({need:'Hotel status & credits', why:'Hotel cards turn PCS and leave travel into upgraded stays and free nights.', picks:CCO_DB.filter(d=>d.tags.includes('hotel'))});
-    if (!has('flat')) gaps.push({need:'A no-fee flat-rate card', why:'A keep-forever no-fee card anchors your credit age and catches uncategorized spend.', picks:CCO_DB.filter(d=>d.tags.includes('flat'))});
-    if (!has('travel')) gaps.push({need:'A core travel points card', why:'Transferable points are the backbone of outsized redemptions.', picks:CCO_DB.filter(d=>d.tags.includes('travel'))});
-    if (!gaps.length) return '<div class="tool"><h3>No obvious gaps</h3><div class="note">Your wallet covers the major benefit categories in the database. Review the Compare and Fee Review tabs to optimize what you hold.</div></div>';
-    return '<p style="font-size:.8rem;color:var(--muted)">Based on your current cards vs. the card database — considerations, not recommendations. Verify terms with issuers.</p>' +
-      gaps.slice(0,4).map(g => '<div class="tool" style="margin-bottom:14px"><div class="kick" style="margin-bottom:4px">POTENTIAL OPPORTUNITY</div><h3>You don\'t currently have: '+g.need+'</h3>' +
-      '<p style="font-size:.85rem;color:var(--muted)">'+g.why+'</p>' +
-      g.picks.slice(0,2).map(p=>'<div style="font-size:.85rem;padding:8px 0;border-top:1px dashed var(--line)"><b>'+p.name+'</b> — '+p.headline+' · fee '+(CCO.state.profile.military?ccoUsd(p.milFee)+' (military)':ccoUsd(p.fee))+' · est. value '+p.est+'</div>').join('') + '</div>').join('');
+  if (v==='benefits'){
+    if (!cards.length) return '<div class="tool"><div class="note">Add cards first — benefits auto-populate.</div></div>';
+    let unusedList = [];
+    let h = '';
+    cards.forEach((c,i) => {
+      const bens = CCO.benefits(c); if (!bens.length) return;
+      const pot = CCO.potentialFor(c), used = CCO.usedFor(c);
+      const name = c.dbId?CCO.db(c.dbId).name:c.name;
+      h += '<div class="tool" style="margin-bottom:14px"><h3>'+name+'</h3>' +
+        '<div class="note">Fee '+ccoUsd(CCO.fee(c))+' · potential tracked credits '+ccoUsd(pot)+'/yr (estimates — worth what you actually use)</div>' +
+        bens.map((b,j) => {
+          const u = +((c.used||{})[j]||0);
+          if (u<=0) unusedList.push({card:name, ben:b.l, v:b.v});
+          return '<div class="field" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">' +
+          '<label style="margin:0;flex:1">'+(u>=b.v?'✓ ':'○ ')+b.l+' <span style="color:var(--muted)">(est. '+ccoUsd(b.v)+')</span></label>' +
+          '<input type="number" min="0" max="'+b.v+'" value="'+(u||'')+'" placeholder="0" data-cco-used="'+i+':'+j+'" style="width:90px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit"> used</div>'; }).join('') +
+        '<div class="bar-track"><div class="bar-fill" style="width:'+(pot?Math.min(100,used/pot*100):0)+'%"></div></div>' +
+        '<div style="font-size:.85rem;margin-top:6px">Used '+ccoUsd(used)+' · <b style="color:var(--gold)">'+ccoUsd(Math.max(0,pot-used))+' potential value remaining</b></div></div>';
+    });
+    if (unusedList.length){
+      h = '<div class="tool" style="margin-bottom:14px;border-left:4px solid var(--gold)"><h3>💸 You May Be Leaving Money On The Table</h3>' +
+        '<div class="note">Benefits with no recorded usage — potential unused value, if you\'d genuinely use them:</div>' +
+        unusedList.slice(0,8).map(u=>'<div style="font-size:.85rem;padding:5px 0;border-bottom:1px dashed var(--line)"><b>'+(u.v?ccoUsd(u.v):'')+'</b> '+u.ben+' <span style="color:var(--muted)">('+u.card+')</span></div>').join('') + '</div>' + h;
+    }
+    return h;
+  }
+  if (v==='path'){
+    let h = ccoProfileForm(p);
+    if (p.strategy && p.score){
+      const {steps, notes} = ccoPath();
+      const active = ccoActiveOffers();
+      h += '<div style="margin-top:20px"><div class="kick">'+CCO_STRATS[p.strategy].label.toUpperCase()+' · YOUR RECOMMENDED PATH</div>';
+      if (active.length){
+        const c = active[0], os = ccoOfferStatus(c);
+        h += '<div class="kap-act-site high"><div class="tier">CURRENT STEP — FINISH THIS FIRST</div>' +
+          '<h4>Complete your '+(c.dbId?CCO.db(c.dbId).name:c.name)+' welcome offer</h4>' +
+          '<p>'+ccoUsd(os.req-os.done)+' of planned spending remaining'+(os.days!==null?' · '+os.days+' days left':'')+'. Opening another card now splits the spending you need here.</p>' +
+          '<p class="why">Once complete, move to the next step below.</p></div>';
+      }
+      let lastPhase='';
+      steps.forEach((sp,i) => {
+        if (sp.phase!==lastPhase){ h += '<div class="kick" style="margin:18px 0 8px">'+sp.phase.toUpperCase()+'</div>'; lastPhase=sp.phase; }
+        const d = sp.card;
+        h += '<div class="kap-act-site '+(i===0&&!active.length?'high':'rec')+'"><div class="tier">STEP '+(i+1)+(i===0&&!active.length?' — START HERE':'')+'</div>' +
+          '<h4>'+d.name+'</h4><p>'+sp.why+'</p>' +
+          '<p style="font-size:.85rem">'+ccoOfferLine(d)+'</p>' +
+          '<p class="why">Fee: '+(CCO.mil()&&d.milFee===0&&d.fee>0? ccoUsd(0)+' with military waiver (reg. '+ccoUsd(d.fee)+', verify)' : ccoUsd(d.fee))+' · Best for: '+d.earn+' · Est. value '+d.est+(d.elig?' · '+d.elig:'')+'</p>' +
+          '<p class="why">Complete this card\'s offer with already-planned spending before moving to the next step.</p></div>';
+      });
+      if (notes.length) h += '<div class="tool" style="margin-top:8px"><div class="note">Held back by eligibility rules: '+notes.join(' · ')+'</div></div>';
+      h += '<p style="font-size:.75rem;color:var(--muted)">Approvals are never guaranteed; offers vary by applicant and change. Space applications out, keep utilization low, and never spend beyond your normal budget to chase a bonus.</p></div>';
+    }
+    return h;
+  }
+  if (v==='collection'){
+    if (!p.strategy) return '<div class="tool"><div class="note">Build your path first (My Path tab) — the Collection is personalized from the same profile.</div></div>';
+    const col = ccoCollection();
+    const sec = (title, arr, color) => arr.length ? '<div class="tool" style="margin-bottom:14px;border-left:4px solid '+color+'"><h3>'+title+'</h3>' +
+      arr.map(([d,r])=>'<div style="font-size:.85rem;padding:6px 0;border-bottom:1px dashed var(--line)"><b>'+d.name+'</b> <span style="color:var(--muted)">('+(d.type==='business'?'Business':'Personal')+' · fee '+ccoUsd(d.fee)+')</span><br><span style="color:var(--muted)">'+r+'</span></div>').join('') + '</div>' : '';
+    return '<div class="kick">YOUR ULTIMATE COLLECTION — WHAT\'S ACTUALLY WORTH IT</div>' +
+      '<p style="font-size:.8rem;color:var(--muted)">The goal is an optimized portfolio, not a big one. Categorized for YOUR profile:</p>' +
+      sec('High Priority', col.high, '#b3202c') + sec('Potentially Valuable', col.maybe, 'var(--gold)') +
+      sec('Situational', col.situational, 'var(--navy)') + sec('Probably Not Worth It For You', col.skip, 'var(--line)');
+  }
+  if (v==='offers'){
+    const offers = ccoActiveOffers();
+    if (!offers.length) return '<div class="tool"><div class="note">No active welcome offers. Add offer terms (from your approval letter) to a card in My Cards.</div></div>';
+    return '<p style="font-size:.8rem;color:var(--muted)"><b>Never spend beyond your normal budget to earn a bonus</b> — pace already-planned spending.</p>' +
+      offers.map(c => {
+        const i = cards.indexOf(c), os = ccoOfferStatus(c);
+        return '<div class="tool" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px"><h3>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</h3><span style="font-family:Oswald;font-size:.8rem">'+os.status+'</span></div>' +
+          '<div class="field"><label>Spend so far <output>'+ccoUsd(os.done)+' / '+ccoUsd(os.req)+'</output></label>' +
+          '<input type="number" min="0" value="'+os.done+'" data-cco-odone="'+i+'" style="width:140px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit"></div>' +
+          '<div class="bar-track"><div class="bar-fill" style="width:'+os.pct+'%"></div></div>' +
+          '<div style="font-size:.85rem;margin-top:6px">'+Math.round(os.pct)+'% · '+ccoUsd(Math.max(0,os.req-os.done))+' remaining' +
+          (os.days!==null?' · '+os.days+' days left':'') + (os.pace?' · required pace ≈'+ccoUsd(os.pace)+'/day of planned spending':'') + '</div></div>';
+      }).join('');
+  }
+  if (v==='wallet'){
+    const owned = cards.map(c=>c.dbId).filter(Boolean).map(id=>CCO.db(id));
+    if (!owned.length) return '<div class="tool"><div class="note">Add database cards to generate your wallet strategy.</div></div>';
+    const pick = tag => owned.filter(d=>d.tags.includes(tag)).sort((a,b)=>b.fee-a.fee)[0];
+    const flat = pick('flat') || owned[0];
+    const active = ccoActiveOffers();
+    const rows = [['Dining', pick('dining')],['Groceries', pick('grocery')],['Flights', owned.filter(d=>d.tags.includes('travel')||d.tags.includes('airline')).sort((a,b)=>b.fee-a.fee)[0]],
+      ['Hotels', pick('hotel')],['Everything else', flat]];
+    let h = '<div class="tool"><h3>Your Wallet Strategy</h3><div class="note">Which card to pull out, and why.</div><table class="cco-tbl">';
+    if (active.length){
+      const c = active[0], os = ccoOfferStatus(c);
+      h += '<tr style="background:rgba(200,162,74,.08)"><td><b>⭐ Welcome-offer spending</b></td><td><b>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</b> <span style="color:var(--muted);font-size:.78rem">— you have '+ccoUsd(os.req-os.done)+' remaining on this offer; route planned spending here first'+(os.days!==null?' ('+os.days+' days left)':'')+'.</span></td></tr>';
+    }
+    h += rows.map(r => '<tr><td><b>'+r[0]+'</b></td><td>'+(r[1]? r[1].name+' <span style="color:var(--muted);font-size:.78rem">— '+r[1].earn+'</span>' : '<span style="color:var(--muted)">no strong option — see Collection</span>')+'</td></tr>').join('');
+    return h + '</table></div>';
   }
   if (v==='compare'){
     const sel = st.compare || ['amex-gold','csp',''];
     const picked = sel.map(id=>id?CCO.db(id):null);
     const row = (label, fn) => '<tr><td>'+label+'</td>' + picked.map(d=>'<td>'+(d?fn(d):'—')+'</td>').join('') + '</tr>';
-    return '<div class="tool"><h3>Compare Cards</h3><div class="note">Pick up to three. Data last verified '+CCO_META.verified+'.</div>' +
+    return '<div class="tool"><h3>Compare Cards</h3>' +
       '<div class="two" style="grid-template-columns:1fr 1fr 1fr;gap:10px">' + sel.map((id,i)=>'<select data-cco-cmp="'+i+'">'+ccoCardOpts(id)+'</select>').join('') + '</div>' +
       '<table class="cco-tbl" style="margin-top:14px">' +
-      row('Issuer', d=>d.issuer) +
-      row('Annual fee', d=>ccoUsd(d.fee)) +
-      row('Military fee*', d=>ccoUsd(d.milFee)) +
-      row('Headline', d=>d.headline) +
-      row('Credits', d=>d.benefits.map(b=>b.l).join('; ')) +
-      row('Est. value', d=>d.est) +
-      row('Lounge access', d=>d.lounge?'Yes':'—') + '</table>' +
-      '<p style="font-size:.68rem;color:var(--muted);margin-top:8px">*Typical for eligible active duty under SCRA/MLA — verify with issuer. '+CCO_META.offerNote+'</p></div>';
+      row('Issuer', d=>d.issuer) + row('Type', d=>d.type) + row('Annual fee', d=>ccoUsd(d.fee)) +
+      row('Military fee*', d=>d.milFee===0?'$0 (verify)':'varies — verify') +
+      row('Welcome offer', d=>ccoOfferLine(d)) + row('Earning', d=>d.earn) + row('Purpose', d=>d.purpose) +
+      row('Credits', d=>d.benefits.map(b=>b.l).join('; ')||'—') + row('Lounge', d=>d.lounge?'Yes':'—') + row('Est. value', d=>d.est) + '</table>' +
+      '<p style="font-size:.68rem;color:var(--muted);margin-top:8px">*SCRA/MLA fee treatment for eligible active duty varies by issuer — verify. '+CCO_META.offerNote+'</p></div>';
   }
-  if (v==='path'){
-    const p = st.profile;
-    const form = '<form class="tool" id="cco-pathform"><h3>Your Profile</h3><div class="note">The roadmap is generated from these answers — change them anytime.</div>' +
-      '<div class="two" style="gap:14px"><div class="field"><label>Credit score range</label><select id="cp-score">'+['','Under 650','650–699','700–749','750+'].map(o=>'<option'+(p.score===o?' selected':'')+'>'+o+'</option>').join('')+'</select></div>' +
-      '<div class="field"><label>Monthly card spending</label><select id="cp-spend">'+['','Under $1,000','$1,000–$3,000','$3,000–$6,000','$6,000+'].map(o=>'<option'+(p.spend===o?' selected':'')+'>'+o+'</option>').join('')+'</select></div></div>' +
-      '<div class="two" style="gap:14px"><div class="field"><label>Travel frequency</label><select id="cp-travel">'+['','Rarely','A few trips a year','Monthly+'].map(o=>'<option'+(p.travel===o?' selected':'')+'>'+o+'</option>').join('')+'</select></div>' +
-      '<div class="field"><label>Annual-fee tolerance (without military waiver)</label><select id="cp-fee">'+['','$0 only','Up to $100','Up to $400','Any — if the value is there'].map(o=>'<option'+(p.fee===o?' selected':'')+'>'+o+'</option>').join('')+'</select></div></div>' +
-      '<div class="field"><label>Military status</label><select id="cp-mil">'+['','Active duty / Guard / Reserve (fee waivers may apply)','Veteran / separated','Not military'].map(o=>'<option'+(p.milStatus===o?' selected':'')+'>'+o+'</option>').join('')+'</select></div>' +
-      '<button class="btn gold" type="submit">Build My Roadmap →</button></form>';
-    let road = '';
-    if (p.score){
-      const steps = ccoRoadmap(p, cards);
-      road = steps.length ? '<div style="margin-top:16px">' + steps.map((sp,i) =>
-        '<div class="kap-act-site '+(i===0?'high':'rec')+'"><div class="tier">STEP '+(i+1)+'</div><h4>'+sp.card.name+'</h4>' +
-        '<p>'+sp.why+'</p><p class="why">Fee: '+(p.military?ccoUsd(sp.card.milFee)+' (military waiver, verify)':ccoUsd(sp.card.fee))+' · Est. value '+sp.card.est+' · '+CCO_META.offerNote+'</p></div>').join('') +
-        '<p style="font-size:.75rem;color:var(--muted)">Space applications out, keep utilization low, and never chase an offer with spending you wouldn\'t otherwise do. Considerations, not guarantees — approval depends on the issuer.</p></div>'
-        : '<div class="tool" style="margin-top:14px"><div class="note">With your current answers the database doesn\'t suggest an obvious next step — your wallet may already cover it.</div></div>';
-    }
-    return form + road;
-  }
-  if (v==='offers'){
-    const offers = cards.filter(c=>+c.offerSpend>0);
-    if (!offers.length) return '<div class="tool"><div class="note">No active welcome offers tracked. Add offer terms to a card in My Cards (from your own approval letter) and they appear here.</div></div>';
-    return '<p style="font-size:.8rem;color:var(--muted)"><b>Never spend beyond your normal budget to earn a bonus</b> — this tracker paces spending you already planned.</p>' +
-      offers.map((c,idx) => {
-        const i = cards.indexOf(c);
-        const done = +c.offerDone||0, req = +c.offerSpend, pct = Math.min(100, done/req*100);
-        let days = null;
-        if (c.offerDeadline){ const d = new Date(c.offerDeadline+'T12:00:00'); if (!isNaN(d)) days = Math.max(0, Math.ceil((d - new Date())/86400000)); }
-        const pace = days>0 ? (req-done)/days : null;
-        return '<div class="tool" style="margin-bottom:14px"><h3>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</h3>' +
-          '<div class="field"><label>Spend so far <output>'+ccoUsd(done)+' / '+ccoUsd(req)+'</output></label>' +
-          '<input type="number" min="0" max="'+req+'" value="'+done+'" data-cco-odone="'+i+'" style="width:140px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit"></div>' +
-          '<div class="bar-track"><div class="bar-fill" style="width:'+pct+'%"></div></div>' +
-          '<div style="font-size:.85rem;margin-top:6px">'+Math.round(pct)+'% · '+ccoUsd(Math.max(0,req-done))+' remaining' +
-          (days!==null? ' · '+days+' days left' : '') + (pace? ' · ≈'+ccoUsd(pace)+'/day of already-planned spending' : '') + '</div></div>';
-      }).join('');
-  }
-  if (v==='strategy'){
-    const owned = cards.map(c=>c.dbId).filter(Boolean).map(id=>CCO.db(id));
-    if (!owned.length) return '<div class="tool"><div class="note">Add database cards in My Cards to generate your wallet strategy.</div></div>';
-    const pick = tag => owned.filter(d=>d.tags.includes(tag)).sort((a,b)=>b.fee-a.fee)[0];
-    const flat = pick('flat') || owned[0];
-    const rowsCfg = [['Dining', pick('dining'), 'strongest dining earner you hold'],['Groceries', pick('grocery'), 'strongest grocery earner you hold'],
-      ['Travel', pick('travel'), 'travel earning + protections'],['Hotels', pick('hotel'), 'hotel credits & status'],['Everything else', flat, 'flat-rate catch-all']];
-    return '<div class="tool"><h3>Your Spending Strategy</h3><div class="note">Which of YOUR cards to pull out, by category.</div>' +
-      '<table class="cco-tbl">' + rowsCfg.map(r => '<tr><td><b>'+r[0]+'</b></td><td>'+(r[1]? r[1].name+' <span style="color:var(--muted);font-size:.78rem">— '+r[2]+'</span>' : '<span style="color:var(--muted)">no strong option in your wallet — see Opportunities</span>')+'</td></tr>').join('') + '</table></div>';
-  }
-  if (v==='fees'){
+  if (v==='portfolio'){
     if (!cards.length) return '<div class="tool"><div class="note">Add cards first.</div></div>';
-    return '<p style="font-size:.8rem;color:var(--muted)">Fee vs. tracked value you\'ve used. A signal, not a decision — value what YOU would actually use. Military members separating: consider downgrading rather than canceling to preserve credit history.</p>' +
-      cards.map(c => {
-        const fee = CCO.fee(c), used = CCO.usedFor(c), net = used - fee;
-        return '<div class="tool" style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">' +
-          '<div><h3 style="margin:0">'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</h3><div class="note" style="margin:0">Fee '+ccoUsd(fee)+' · benefits used '+ccoUsd(used)+'</div></div>' +
-          '<div style="text-align:right"><div style="font-family:Oswald;font-size:1.2rem;color:'+(net>=0?'#16803c':'#b3202c')+'">'+(net>=0?'+':'−')+ccoUsd(Math.abs(net))+'</div>' +
-          '<span class="cco-chip '+(net>=0?'keep':'rev')+'">'+(net>=0?'KEEP':'REVIEW')+'</span></div></div>';
-      }).join('');
+    const owned = cards.map(c=>c.dbId).filter(Boolean).map(id=>CCO.db(id));
+    const fees = cards.reduce((a,c)=>a+CCO.fee(c),0);
+    const limits = cards.reduce((a,c)=>a+(+c.limit||0),0);
+    const bal = cards.reduce((a,c)=>a+(+c.balance||0),0);
+    const has = tag => owned.some(d=>d.tags.includes(tag));
+    const strengths=[], gaps=[];
+    if (has('transfer')) strengths.push('Transferable-points foundation in place');
+    if (owned.some(d=>d.lounge)) strengths.push('Lounge access covered'); else gaps.push('No lounge access');
+    if (has('dining')||has('grocery')) strengths.push('Food categories earning well'); else gaps.push('Weak dining/grocery earning');
+    if (has('hotel')) strengths.push('Hotel strategy started'); else gaps.push('No hotel card');
+    if (has('airline')) strengths.push('Airline benefits in place'); else gaps.push('No airline-specific benefits');
+    if (has('flat')) strengths.push('Flat-rate catch-all anchor'); else gaps.push('No no-fee flat-rate anchor');
+    const improve = ccoPath().steps.slice(0,2);
+    return '<div class="cco-stats">' + ccoStat('Cards', cards.length) + ccoStat('Annual fees', ccoUsd(fees)) +
+      (limits?ccoStat('Available credit', ccoUsd(Math.max(0,limits-bal))):'') + (limits?ccoStat('Utilization', Math.round(bal/limits*100)+'%'):'') + '</div>' +
+      '<div class="two" style="align-items:start"><div class="tool"><h3>Portfolio Strengths</h3>' + (strengths.map(x=>'<div class="kap-li" style="font-size:.85rem">'+x+'</div>').join('')||'<div class="note">Add cards to analyze.</div>') + '</div>' +
+      '<div class="tool"><h3>Portfolio Gaps</h3>' + (gaps.map(x=>'<div class="kap-li warn" style="font-size:.85rem">'+x+'</div>').join('')||'<div class="note">No major gaps found.</div>') + '</div></div>' +
+      (improve.length? '<div class="tool" style="margin-top:14px"><h3>Potential Improvements</h3>' + improve.map(sp=>'<div style="font-size:.85rem;padding:5px 0">Consider <b>'+sp.card.name+'</b> — '+sp.card.purpose+'</div>').join('') + '</div>' : '') +
+      '<h3 style="font-family:Oswald;margin:20px 0 10px">ANNUAL FEE REVIEW</h3>' +
+      '<p style="font-size:.8rem;color:var(--muted)">Fee vs. tracked value used — a signal, not a decision. Separating from service? Consider downgrading rather than canceling.</p>' +
+      cards.map(c => { const fee=CCO.fee(c), used=CCO.usedFor(c), net=used-fee;
+        return '<div class="tool" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap">' +
+        '<div><b>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</b> <span style="color:var(--muted);font-size:.8rem">fee '+ccoUsd(fee)+' · used '+ccoUsd(used)+'</span></div>' +
+        '<div><span style="font-family:Oswald;color:'+(net>=0?'#16803c':'#b3202c')+';margin-right:10px">'+(net>=0?'+':'−')+ccoUsd(Math.abs(net))+'</span>' +
+        '<span class="cco-chip '+(net>=0?'keep':'rev')+'">'+(net>=0?'KEEP':'REVIEW')+'</span></div></div>'; }).join('');
   }
   if (v==='wb'){
-    return '<div class="tool"><h3>The Tracking Workbook</h3><div class="note">Your offline command center — Excel & Google Sheets compatible.</div>' +
-      '<p style="font-size:.88rem">Ten formatted tabs: START HERE, MY CARDS, BENEFITS TRACKER, CARD DATABASE (all '+CCO_DB.length+' cards prefilled), CARD COMPARISON, MY SPENDING, WELCOME BONUSES, CARD ROADMAP, ANNUAL FEE REVIEW, and a live DASHBOARD. Dropdowns, auto-calculations, and KEEP/REVIEW signals built in.</p>' +
-      '<p style="font-size:.8rem;color:var(--muted)">Use the website for discovery, comparisons, and your roadmap — use the workbook for long-term personal tracking. Google Sheets: upload via File → Import.</p>' +
+    return '<div class="tool"><h3>The Strategy Workbook</h3>' +
+      '<p style="font-size:.88rem">Ten formatted tabs — MY CARDS, BENEFITS TRACKER, CARD DATABASE ('+CCO_DB.length+' cards with current-vs-typical offers as of '+CCO_META.verified+'), CARD COMPARISON, MY SPENDING, WELCOME BONUSES, CARD ROADMAP, ANNUAL FEE REVIEW, DASHBOARD — with dropdowns, live formulas, and KEEP/REVIEW signals.</p>' +
+      '<p style="font-size:.8rem;color:var(--muted)">Website = discovery, path, and strategy. Workbook = your long-term personal records. Google Sheets: File → Import.</p>' +
       '<a class="btn gold" href="cco-workbook.xlsx" download>⬇ Download The Workbook</a></div>';
   }
   return '';
 }
 
-function ccoRoadmap(p, cards){
-  const ownedIds = cards.map(c=>c.dbId).filter(Boolean);
-  const mil = (p.milStatus||'').indexOf('Active')===0;
-  CCO.state.profile.military = mil; CCO.save();
-  const lowScore = p.score==='Under 650';
-  const feeOK = mil || p.fee==='Any — if the value is there' || p.fee==='Up to $400';
-  const steps = [];
-  const add = (id, why) => { const d = CCO.db(id); if (d && !ownedIds.includes(id) && steps.length<4 && !steps.some(s=>s.card.id===id)) steps.push({card:d, why:why}); };
-  if (lowScore){ add('cfu','A no-fee foundation card to build history and keep utilization low before pursuing premium cards.'); add('dc','A second no-fee flat-rate earner — simple 2% while your score climbs.'); return steps; }
-  add('csp','A proven first travel card: low fee, strong points ecosystem, and it unlocks transfers for any Chase cards you add later.');
-  if (mil && (p.travel==='A few trips a year' || p.travel==='Monthly+')) add('amex-plat','With the military fee waiver, the premium credits and lounge access come without the '+ccoUsd(895)+' fee that stops everyone else. Verify your waiver eligibility first.');
-  else if (feeOK && p.travel==='Monthly+') add('csr','Frequent travel makes the travel credit and protections outweigh the fee — run the math against your real trips.');
-  if (mil) add('aspire','Hotel status and resort credits pair naturally with PCS and leave travel — again effectively fee-free if your waiver applies.');
-  add('cfu','A no-fee catch-all that rounds out the wallet and pairs with Sapphire points.');
-  return steps;
+/* -------- printable "My Credit Card Plan" (data-built, standalone) -------- */
+function ccoPrintPlan(){
+  CCO.load();
+  const st = CCO.state, cards = st.cards, p = st.profile;
+  const today = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  const {steps} = p.strategy ? ccoPath() : {steps:[]};
+  const active = ccoActiveOffers();
+  const css='@page{margin:18mm 16mm} body{font-family:Georgia,serif;color:#1a2331;line-height:1.55;font-size:11pt;margin:0}'+
+    'h1,h2,h3{font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:.06em;color:#0a2540}'+
+    '.hd{border-bottom:3px solid #c8a24a;padding-bottom:10px;margin-bottom:20px}.hd h1{font-size:19pt;margin:0}.hd .sub{color:#5c6a7d;font-size:9.5pt}'+
+    'h2{font-size:12pt;border-bottom:1px solid #e2e6ec;padding-bottom:4px;margin:22px 0 10px;page-break-after:avoid}'+
+    'table{width:100%;border-collapse:collapse;font-size:10pt}td{padding:5px 8px;border-bottom:1px solid #eef1f5;vertical-align:top}'+
+    '.item{page-break-inside:avoid;margin:0 0 12px;padding:10px 14px;border-left:3px solid #c8a24a;background:#fafbfc}'+
+    '.item h3{font-size:10.5pt;margin:0 0 4px}.item p{margin:2px 0;font-size:10pt}.item .why{color:#5c6a7d}'+
+    '.ft{margin-top:26px;border-top:1px solid #e2e6ec;padding-top:8px;font-size:8pt;color:#8a94a3}';
+  let h='<div class="hd"><h1>My Credit Card Strategy</h1><div class="sub">'+today+' · CAPTAIN KAP — Credit Card Optimization System · Offers verified '+CCO_META.verified+'</div></div>';
+  if (cards.length){
+    h+='<h2>Current Wallet</h2><table>'+cards.map(c=>{ const d=c.dbId?CCO.db(c.dbId):null;
+      return '<tr><td><b>'+(d?d.name:c.name)+'</b>'+(d?'<br><span style="color:#5c6a7d">'+d.purpose+'</span>':'')+'</td><td style="text-align:right">'+ccoUsd(CCO.fee(c))+'/yr</td></tr>';}).join('')+'</table>';
+  }
+  if (active.length){
+    h+='<h2>Active Welcome Offers</h2>'+active.map(c=>{ const os=ccoOfferStatus(c);
+      return '<div class="item"><h3>'+(c.dbId?CCO.db(c.dbId).name:c.name)+' — '+os.status.replace(/^\S+\s/,'')+'</h3><p>'+ccoUsd(os.done)+' of '+ccoUsd(os.req)+' ('+Math.round(os.pct)+'%)'+(os.days!==null?' · '+os.days+' days remaining':'')+(os.pace?' · pace ≈'+ccoUsd(os.pace)+'/day of planned spending':'')+'</p></div>';}).join('');
+  }
+  if (steps.length){
+    h+='<h2>Recommended Path'+(p.strategy?' — '+CCO_STRATS[p.strategy].label:'')+'</h2>'+steps.map((sp,i)=>{
+      const d=sp.card, off = d.offer&&d.offer.bonus ? d.offer.bonus+(d.offer.spend?' ('+ccoUsd(d.offer.spend)+(d.offer.months?' in '+d.offer.months+' mo':'')+')':'') : 'verify current offer';
+      return '<div class="item"><h3>Step '+(i+1)+': '+d.name+'</h3><p>'+sp.why+'</p><p class="why">Target offer: '+off+' · Typical: '+(d.typical||'data unavailable')+' · Fee '+ccoUsd(d.fee)+(CCO.mil()&&d.milFee===0&&d.fee>0?' (typically $0 with military waiver — verify)':'')+'</p></div>';}).join('');
+  }
+  const unused=[];
+  cards.forEach(c=>{ CCO.benefits(c).forEach((b,j)=>{ if(!((c.used||{})[j]>0) && b.v>0) unused.push((c.dbId?CCO.db(c.dbId).name:c.name)+': '+b.l+' (est. '+ccoUsd(b.v)+')'); }); });
+  if (unused.length) h+='<h2>Benefits To Use</h2><table>'+unused.slice(0,12).map(u=>'<tr><td>'+u+'</td></tr>').join('')+'</table>';
+  const owned = cards.map(c=>c.dbId).filter(Boolean).map(id=>CCO.db(id));
+  if (owned.length){
+    const pick = tag => owned.filter(d=>d.tags.includes(tag)).sort((a,b)=>b.fee-a.fee)[0];
+    const rows=[['Dining',pick('dining')],['Groceries',pick('grocery')],['Travel',owned.filter(d=>d.tags.includes('travel')).sort((a,b)=>b.fee-a.fee)[0]],['Hotels',pick('hotel')],['Everything else',pick('flat')||owned[0]]];
+    h+='<h2>Spending Strategy</h2><table>'+rows.map(r=>'<tr><td>'+r[0]+'</td><td>'+(r[1]?r[1].name:'—')+'</td></tr>').join('')+'</table>';
+  }
+  if (cards.length){
+    h+='<h2>Annual Fee Review</h2><table>'+cards.map(c=>{ const fee=CCO.fee(c),used=CCO.usedFor(c),net=used-fee;
+      return '<tr><td>'+(c.dbId?CCO.db(c.dbId).name:c.name)+'</td><td>fee '+ccoUsd(fee)+' · used '+ccoUsd(used)+'</td><td style="text-align:right"><b>'+(net>=0?'KEEP':'REVIEW')+'</b></td></tr>';}).join('')+'</table>';
+  }
+  h+='<div class="ft">Educational planning tool — not financial advice; no recommendation or endorsement of any card; approvals never guaranteed; offers vary by applicant and change without notice. Never spend beyond your normal budget to earn rewards. Rewards require paying balances in full. Verify all terms, fees, offers, and military (SCRA/MLA) fee policies directly with each issuer. Generated by the Captain Kap Credit Card Optimization System.</div>';
+  const w=window.open('','_blank');
+  if(!w){ alert('Please allow pop-ups to print your plan.'); return; }
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>My Credit Card Strategy</title><style>'+css+'</style></head><body>'+h+'</bo'+'dy></html>');
+  w.document.close(); w.focus(); setTimeout(function(){ try{w.print();}catch(e){} },400);
 }
 
 function ccoWire(host){
   const jump = host.querySelector('[data-ccotab-jump]');
   if (jump) jump.onclick = () => { CCO.view = jump.dataset.ccotabJump; ccoRender(); };
+  const pr = host.querySelector('#cco-print'); if (pr) pr.onclick = ccoPrintPlan;
   const addForm = host.querySelector('#cco-addform');
   if (addForm){
     const dbSel = host.querySelector('#ca-db');
@@ -1638,21 +1917,23 @@ function ccoWire(host){
       const custom = dbSel.value==='__custom';
       host.querySelector('#ca-namewrap').style.display = custom?'block':'none';
       host.querySelector('#ca-feewrap').style.display = custom?'block':'none';
+      const d = !custom && dbSel.value ? CCO.db(dbSel.value) : null;
+      host.querySelector('#ca-preview').innerHTML = d ? '<b>Auto-filled:</b> '+d.issuer+' · fee '+ccoUsd(d.fee)+' · '+d.earn+' · '+d.purpose : '';
     };
     addForm.onsubmit = e => {
       e.preventDefault();
       const v = id => host.querySelector(id).value.trim();
       const dbId = dbSel.value && dbSel.value!=='__custom' ? dbSel.value : null;
       if (!dbId && !v('#ca-name')) return;
-      CCO.state.cards.push({ dbId: dbId, name: v('#ca-name'), fee: v('#ca-fee'), opened: v('#ca-open'),
-        limit: v('#ca-limit'), offerSpend: v('#ca-ospend'), offerDeadline: v('#ca-odl'), offerDone: 0, notes: v('#ca-notes'), used: {} });
+      CCO.state.cards.push({ dbId:dbId, name:v('#ca-name'), fee:v('#ca-fee'), opened:v('#ca-open'), limit:v('#ca-limit'),
+        balance:v('#ca-bal'), offerSpend:v('#ca-ospend'), offerDeadline:v('#ca-odl'), offerDone:0, notes:v('#ca-notes'), used:{} });
       CCO.save(); ccoRender();
     };
   }
   host.querySelectorAll('[data-cco-del]').forEach(b => b.onclick = () => { CCO.state.cards.splice(+b.dataset.ccoDel,1); CCO.save(); ccoRender(); });
   host.querySelectorAll('[data-cco-used]').forEach(inp => inp.onchange = () => {
-    const [i,j] = inp.dataset.ccoUsed.split(':'); const c = CCO.state.cards[+i];
-    c.used = c.used || {}; c.used[j] = +inp.value||0; CCO.save(); ccoRender();
+    const parts = inp.dataset.ccoUsed.split(':'); const c = CCO.state.cards[+parts[0]];
+    c.used = c.used || {}; c.used[parts[1]] = +inp.value||0; CCO.save(); ccoRender();
   });
   host.querySelectorAll('[data-cco-odone]').forEach(inp => inp.onchange = () => {
     CCO.state.cards[+inp.dataset.ccoOdone].offerDone = +inp.value||0; CCO.save(); ccoRender();
@@ -1665,7 +1946,9 @@ function ccoWire(host){
   if (pf) pf.onsubmit = e => {
     e.preventDefault();
     const gv = id => host.querySelector(id).value;
-    Object.assign(CCO.state.profile, { score: gv('#cp-score'), spend: gv('#cp-spend'), travel: gv('#cp-travel'), fee: gv('#cp-fee'), milStatus: gv('#cp-mil') });
+    Object.assign(CCO.state.profile, { strategy: gv('#cp-strategy'), score: gv('#cp-score'), spend: gv('#cp-spend'),
+      opened24: gv('#cp-opened'), feeTol: gv('#cp-fee'), airline: gv('#cp-air'), hotel: gv('#cp-hotel'),
+      milStatus: gv('#cp-mil'), business: gv('#cp-biz') });
     CCO.save(); ccoRender();
   };
 }
