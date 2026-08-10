@@ -93,6 +93,16 @@
       #root > div > nav a{ padding:8px 11px !important; font-size:.64rem !important; }
       main{ padding:10px 0 20px !important; }
     }
+
+    /* ---- 9. Content-driven height. The app root's min-h-screen (100vh)
+            ratchets the embed: inside the iframe 100vh = frame height, so
+            once the frame grows for a tall tab (Credit Cards, Summary) the
+            document can never report a smaller height again — leaving a
+            large blank band under the toolkit on shorter tabs. Kill the
+            floor; body carries the background so standalone/full-screen
+            use still paints edge to edge. ---- */
+    html, body{ background:var(--paper); }
+    .min-h-screen{ min-height:0 !important; }
     </style>
   </head>
   <body>
@@ -513,13 +523,17 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
   'use strict';
   var CATS = [
     {label:'Essentials',        tools:[['/pay','Pay'],['/budget','Budget'],['/rent-vs-buy','Rent vs. Buy']]},
-    {label:'Career & Moves',    tools:[['/pcs','PCS'],['/deployment','Deployment'],['/civilian-pay','Civilian Pay']]},
+    {label:'Career & Moves',    tools:[['/future-pay','Future Pay'],['/pcs','PCS'],['/deployment','Deployment'],['/civilian-pay','Civilian Pay']]},
     {label:'Retirement',        tools:[['/tsp','TSP / BRS'],['/pension','Pension'],['/where-to-retire','Where to Retire']]},
     {label:'Benefits & Credit', tools:[['/credit-cards','Credit Cards'],['/va-disability','VA Disability']]},
     {label:'⭐ Summary',        tools:[['/summary','Summary']]}
   ];
   var PREMIUM = ['/pcs','/deployment','/tsp','/credit-cards','/civilian-pay','/va-disability','/pension','/where-to-retire'];
   function route(){ return (location.hash||'#/pay').replace(/^#/,'').split('?')[0]; }
+  /* '/future-pay' is an injected (non-React) view: the app's router rewrites
+     unknown hashes, so it lives as a flag instead of a hash route. cur() is
+     the effective location used for all highlighting. */
+  function cur(){ return window.__kapFpOn ? '/future-pay' : route(); }
   function limited(){ try{ return !(window.KapAccess && window.KapAccess.level()==='full'); }catch(e){ return true; } }
   function isLocked(r){ return limited() && PREMIUM.indexOf(r)!==-1; }
   function catFor(r){
@@ -533,7 +547,7 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
     if (!orig) return;
     var host = document.getElementById('kap-nav-host');
     if (!host){ host = document.createElement('div'); host.id='kap-nav-host'; orig.parentElement.insertBefore(host, orig); }
-    var r = route(), active = catFor(r);
+    var r = cur(), active = catFor(r);
     var cats = CATS.map(function(c){
       var allLocked = limited() && c.tools.every(function(t){ return PREMIUM.indexOf(t[0])!==-1; });
       return '<button type="button" class="kap-cat'+(c===active?' on':'')+'" data-cat="'+c.label+'" aria-selected="'+(c===active)+'">'+
@@ -545,20 +559,423 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
         }).join('')+'</div>'
       : '';
     host.innerHTML = '<div class="kap-cats" role="tablist">'+cats+'</div>'+tools;
+    function go(dest){
+      window.__kapFpOn = (dest === '/future-pay');
+      document.dispatchEvent(new CustomEvent('kap-fp-change'));
+      if (dest !== '/future-pay' && route() !== dest) location.hash = dest;
+      else render();
+    }
     host.querySelectorAll('.kap-cat').forEach(function(b){
       b.onclick = function(){
         var c = CATS.filter(function(x){ return x.label===b.dataset.cat; })[0];
-        if (c.tools.map(function(t){return t[0];}).indexOf(route())===-1) location.hash = c.tools[0][0];
-        else render();
+        var inCat = c.tools.map(function(t){return t[0];}).indexOf(cur())!==-1;
+        go(inCat ? cur() : c.tools[0][0]);
       };
     });
     host.querySelectorAll('.kap-tool').forEach(function(b){
-      b.onclick = function(){ location.hash = b.dataset.route; };
+      b.onclick = function(){ go(b.dataset.route); };
     });
   }
   window.addEventListener('hashchange', render);
   document.addEventListener('kap-access-change', render);
+  document.addEventListener('kap-fp-change', render);
   new MutationObserver(function(){ if (!document.getElementById('kap-nav-host')) render(); })
+    .observe(document.getElementById('root'), {childList:true, subtree:true});
+  render();
+})();
+</script>
+
+<style id="kap-stepper-css">
+  /* numeric stepper for Years of Service — wraps the app's own input, so the
+     React state stays the single source of truth (typing AND buttons both
+     flow through the same onChange). */
+  .kap-stepped{overflow:hidden}
+  .kap-step{font-family:'Oswald','Inter',sans-serif;font-size:1.1rem;line-height:1;width:40px;align-self:stretch;
+    flex-shrink:0;border:0;background:var(--navy);color:#fff;cursor:pointer;transition:.15s;padding:0}
+  .kap-step:hover{background:var(--gold);color:var(--navy-deep)}
+  .kap-step:focus-visible{outline:2px solid rgba(200,162,74,.6);outline-offset:-2px}
+  .kap-stepped input{text-align:center;font-weight:600;font-size:.95rem !important}
+</style>
+<script id="kap-stepper">
+/* Years of Service stepper: [−] 6 [+] beside the existing typed input.
+   ONE source of truth — the app's React state. The buttons write through
+   the native value setter + an 'input' event, which fires the component's
+   own onChange, so every dependent calculation updates immediately and
+   typing keeps working exactly as before. Whole numbers, clamped 0–40
+   (the same min/max the app passes to this field). */
+(function(){
+  'use strict';
+  var setVal = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+  function reactSet(input, v){
+    setVal.call(input, String(v));
+    input.dispatchEvent(new Event('input', {bubbles:true}));
+  }
+  function bump(input, d){
+    var v = parseFloat(input.value); if (!isFinite(v)) v = 0;
+    v = Math.round(v) + d;
+    if (v < 0) v = 0; if (v > 40) v = 40;
+    reactSet(input, v);
+  }
+  function enhance(){
+    var labs = document.querySelectorAll('#root main label');
+    for (var i=0;i<labs.length;i++){
+      var lab = labs[i];
+      if (!/^years of service/i.test((lab.textContent||'').trim())) continue;
+      var id = lab.getAttribute('for'); if (!id) continue;
+      var input = document.getElementById(id); if (!input) continue;
+      var box = input.parentElement;
+      if (!box || box.classList.contains('kap-stepped')) continue;
+      box.classList.add('kap-stepped');
+      var minus = document.createElement('button'); minus.type='button'; minus.className='kap-step';
+      minus.textContent='−'; minus.setAttribute('aria-label','Decrease years of service');
+      var plus = document.createElement('button'); plus.type='button'; plus.className='kap-step';
+      plus.textContent='+'; plus.setAttribute('aria-label','Increase years of service');
+      (function(inp){
+        minus.onclick = function(){ bump(inp, -1); };
+        plus.onclick  = function(){ bump(inp, +1); };
+        inp.addEventListener('keydown', function(e){
+          if (e.key==='ArrowUp'){ e.preventDefault(); bump(inp, +1); }
+          if (e.key==='ArrowDown'){ e.preventDefault(); bump(inp, -1); }
+        });
+      })(input);
+      box.insertBefore(minus, box.firstChild);
+      box.appendChild(plus);
+    }
+  }
+  new MutationObserver(enhance).observe(document.getElementById('root'), {childList:true, subtree:true});
+  enhance();
+})();
+</script>
+
+<script id="kap-paydata">
+/* ============================================================
+   CENTRAL PAY DATA — window.KapPayData
+   The single source of military compensation data for every
+   injected tool (Future Pay, Summary career projection). It is
+   parsed AT RUNTIME from the toolkit's own compiled bundle —
+   the same 2026 pay table, typical-progression tables, and BAS
+   rates the app's calculators use — so there is exactly ONE
+   pay table in this product. Rebuild the app → this picks up
+   the new data automatically. If parsing ever fails (bundle
+   format change), KapPayData is null and dependent tools show
+   an explicit "pay data unavailable" state instead of guessing.
+   ============================================================ */
+(function(){
+  'use strict';
+  var s = '';
+  var scripts = document.querySelectorAll('script');
+  for (var i=0;i<scripts.length;i++){
+    var t = scripts[i].textContent || '';
+    if (t.indexOf('"E-1":{"<2"') > -1){ s = t; break; }
+  }
+  var data = null;
+  try {
+    var m = /\{"E-1":\{"<2":[\s\S]*?"O-10":\{[^{}]*\}\}/.exec(s);
+    var table = JSON.parse(m[0].replace(/([{,])(\d+(?:\.\d+)?):/g, '$1"$2":'));
+    function arr(re){
+      var mm = re.exec(s);
+      return mm ? JSON.parse(mm[0].replace(/,\s*\./g, ',0.')) : null;
+    }
+    var prog = {
+      E:  arr(/\[\["E-1",0\],\["E-2",[^\]]+\][\s\S]*?\["E-9",[\d.]+\]\]/),
+      W:  arr(/\[\["W-1",0\],[\s\S]*?\["W-5",[\d.]+\]\]/),
+      O:  arr(/\[\["O-1",0\],[\s\S]*?\["O-6",[\d.]+\]\]/),
+      OE: arr(/\[\["O-1E",0\],[\s\S]*?\["O-6",[\d.]+\]\]/)
+    };
+    var basm = /Officer \$([\d.]+) \/ enlisted \$([\d.]+)/.exec(s);
+    data = {
+      effective: '2026-01-01',
+      grades: Object.keys(table),
+      bas: basm ? { officer:+basm[1], enlisted:+basm[2] } : null,
+      basePay: function(grade, yos){
+        var g = table[grade]; if (!g) return null;
+        if (yos < 2) return g['<2'];
+        var best = null;
+        for (var k in g){ if (k !== '<2' && +k <= yos && (best === null || +k > best)) best = +k; }
+        return best === null ? g['<2'] : g[String(best)];
+      },
+      trackFor: function(grade){
+        if (/^O-\dE$/.test(grade)) return prog.OE;
+        if (grade.charAt(0)==='E') return prog.E;
+        if (grade.charAt(0)==='W') return prog.W;
+        return prog.O;
+      },
+      /* mirrors the app's own progression engine: promote when years-from-now
+         reaches the delta between typical time-in-service points. TYPICAL
+         points for planning — never a guarantee. */
+      progressGrade: function(grade, yearsFromNow){
+        var track = this.trackFor(grade); if (!track) return grade;
+        var r = -1;
+        for (var i=0;i<track.length;i++) if (track[i][0]===grade) r = i;
+        if (r < 0) return grade;
+        var a = track[r][1], out = grade;
+        for (var o=r+1;o<track.length;o++) if (yearsFromNow >= track[o][1]-a) out = track[o][0];
+        return out;
+      }
+    };
+    /* sanity check — if any core piece failed, declare the whole thing unavailable */
+    if (!data.basePay('E-5',4) || !prog.E || !prog.O) data = null;
+  } catch(e){ data = null; }
+  window.KapPayData = data;
+})();
+</script>
+
+<style id="kap-career-css">
+  /* Future Pay Projection — site design system */
+  body.kap-fp #root main{display:none !important}
+  #kap-fp-host{display:none;font-family:'Inter',sans-serif;padding:14px 2px 26px}
+  body.kap-fp #kap-fp-host{display:block}
+  .kap-fp-card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 24px 56px -36px rgba(10,37,64,.4);padding:24px 26px;margin-bottom:16px}
+  .kap-fp-card > .kick, #kap-fp-host .kick{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+  #kap-fp-host h2{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--ink);font-size:1.35rem;margin:0 0 4px}
+  #kap-fp-host h3{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--ink);font-size:1rem;margin:0 0 10px}
+  .kap-fp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+  .kap-fp-field label{display:block;font-size:.83rem;font-weight:500;color:#374151;margin-bottom:4px}
+  .kap-fp-field select,.kap-fp-field input{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:6px;font:inherit;font-size:.9rem;background:#fff;box-sizing:border-box}
+  .kap-fp-step{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  .kap-fp-step input{border:0;text-align:center;font-weight:600;min-width:0}
+  .kap-fp-chips{display:flex;gap:8px;flex-wrap:wrap}
+  .kap-chip{font-family:'Oswald',sans-serif;font-size:.7rem;font-weight:600;letter-spacing:1.2px;padding:9px 16px;border-radius:30px;
+    border:1px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:.2s}
+  .kap-chip:hover{border-color:var(--navy);color:var(--navy)}
+  .kap-chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .kap-fp-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .kap-fp-stat{border:1px solid var(--line);border-radius:10px;padding:14px 16px;text-align:center}
+  .kap-fp-stat .n{font-family:'Oswald',sans-serif;font-size:1.5rem;color:var(--navy)}
+  .kap-fp-stat.gold .n{color:var(--gold)}
+  .kap-fp-stat .l{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:2px}
+  .kap-fp-stat .s{font-size:.75rem;color:var(--muted);margin-top:4px}
+  #kap-fp-host table{width:100%;border-collapse:collapse;font-size:.86rem}
+  #kap-fp-host td,#kap-fp-host th{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+  #kap-fp-host th{font-family:'Oswald',sans-serif;font-size:.68rem;letter-spacing:1px;text-transform:uppercase;color:var(--muted)}
+  #kap-fp-host td.num,#kap-fp-host th.num{text-align:right;white-space:nowrap}
+  .kap-fp-note{font-size:.74rem;color:var(--muted)}
+  .kap-fp-badge{display:inline-block;font-family:'Oswald',sans-serif;font-size:.62rem;letter-spacing:1.5px;padding:4px 10px;border-radius:20px;background:rgba(200,162,74,.14);color:#8a6d2a;vertical-align:middle}
+  .kap-fp-ladder{display:flex;flex-direction:column;gap:0}
+  .kap-fp-rung{display:flex;align-items:center;gap:14px;padding:9px 0;border-bottom:1px dashed var(--line);font-size:.9rem}
+  .kap-fp-rung .yr{font-family:'Oswald',sans-serif;font-size:.72rem;letter-spacing:1px;color:var(--muted);width:74px;flex-shrink:0}
+  .kap-fp-rung .gr{width:64px;font-weight:600;flex-shrink:0}
+  .kap-fp-rung .pay{font-family:'Oswald',sans-serif;color:var(--navy);margin-left:auto}
+  .kap-fp-rung.now .pay{color:var(--gold)}
+  @media (max-width:640px){
+    .kap-fp-card{padding:18px 16px}
+    #kap-fp-host td,#kap-fp-host th{padding:7px 6px;font-size:.8rem}
+    .kap-fp-annual{display:none}   /* annual = monthly ×12 — monthly stays */
+  }
+</style>
+<script id="kap-career">
+/* ============================================================
+   FUTURE PAY PROJECTION — Career & Moves planning tool.
+   Answers: "what does my financial future potentially look
+   like if I continue on this path?" All pay values come from
+   window.KapPayData (the app's own bundled 2026 table — one
+   source of truth). Every projected figure is labeled
+   PROJECTED; promotion assumptions are explicit and user-
+   controlled, never silent. State: localStorage kap.futurepay.v1
+   (same {state:{...}} envelope as the app's stores, so the
+   Summary engine reads it with the same helper).
+   ============================================================ */
+(function(){
+  'use strict';
+  var PD = window.KapPayData;
+  var usd = function(n){ return '$' + Math.round(n).toLocaleString('en-US'); };
+  var HORIZONS = [1,3,5,10];
+  function on(){ return window.__kapFpOn === true; }
+  function load(){
+    try { var raw = localStorage.getItem('kap.futurepay.v1'); if (raw) return JSON.parse(raw).state || {}; } catch(e){}
+    return {};
+  }
+  function save(S){ try { localStorage.setItem('kap.futurepay.v1', JSON.stringify({state:S})); } catch(e){} }
+  function payStore(){
+    try { var raw = localStorage.getItem('mft.pay-calculator.v1'); if (raw) return JSON.parse(raw).state || null; } catch(e){}
+    return null;
+  }
+  var S = load();
+  function defaults(){
+    var p = payStore();
+    if (!S.grade){ S.grade = (p && p.grade) || 'E-5'; S.fromPay = !!(p && p.grade); }
+    if (S.yos === undefined) S.yos = (p && +p.yearsOfService) || 4;
+    if (!S.horizon) S.horizon = 5;
+    if (!S.method) S.method = 'prog';
+  }
+  function gradeOptions(sel){
+    if (!PD) return '';
+    var groups = [['Enlisted', /^E-/],['Warrant Officer', /^W-/],['Officer (prior enlisted)', /^O-\dE$/],['Officer', /^O-\d+$/]];
+    return groups.map(function(g){
+      var opts = PD.grades.filter(function(x){ return g[1].test(x); });
+      if (!opts.length) return '';
+      return '<optgroup label="'+g[0]+'">'+opts.map(function(o){
+        return '<option value="'+o+'"'+(o===sel?' selected':'')+'>'+o+'</option>'; }).join('')+'</optgroup>';
+    }).join('');
+  }
+  function futureGrade(years){
+    if (S.method==='stay') return S.grade;
+    if (S.method==='custom') return years >= horizon() ? (S.customGrade || S.grade) : (S.grade);
+    return PD.progressGrade(S.grade, years);
+  }
+  function horizon(){ return S.horizon==='custom' ? Math.max(1, Math.min(30, Math.round(+S.customYears||5))) : +S.horizon; }
+
+  function render(){
+    var mainEl = document.querySelector('#root main');
+    if (!mainEl) return;
+    var host = document.getElementById('kap-fp-host');
+    if (!host){ host = document.createElement('div'); host.id='kap-fp-host'; mainEl.parentElement.insertBefore(host, mainEl); }
+    var active = on();
+    document.body.classList.toggle('kap-fp', active);
+    if (!active) return;
+    defaults();
+    if (!PD){
+      host.innerHTML = '<div class="kap-fp-card"><div class="kick">FUTURE PAY PROJECTION</div>'+
+        '<p style="font-size:.9rem">Pay data is unavailable in this build — the bundled pay table could not be read. '+
+        'Your current pay is always available in the <a href="#/pay" style="color:var(--gold)">Pay calculator</a>.</p></div>';
+      return;
+    }
+    var yrs = horizon();
+    var g0 = S.grade, y0 = Math.max(0, Math.min(40, Math.round(+S.yos||0)));
+    var gF = futureGrade(yrs), yF = Math.min(40, y0 + yrs);
+    var p0 = PD.basePay(g0, y0), pF = PD.basePay(gF, yF);
+    var diff = (pF||0) - (p0||0);
+    var isOff = function(g){ return g.charAt(0)!=='E'; };
+    var year0 = new Date().getFullYear();
+
+    var h = '<div class="kap-fp-card">' +
+      '<div class="kick">CAREER &amp; MOVES · FUTURE PAY PROJECTION <span class="kap-fp-badge">PROJECTED — FOR PLANNING</span></div>' +
+      '<h2>Project Your Future Military Pay</h2>' +
+      '<p style="font-size:.88rem;color:var(--muted);margin:0 0 16px">What does your financial future potentially look like if you continue on this path? Built on the same 2026 pay table as the Pay calculator'+(S.fromPay?' — your grade and years of service were pre-filled from your Pay entries':'')+'.</p>' +
+      '<div class="kap-fp-grid">' +
+      '<div class="kap-fp-field"><label>Current pay grade</label><select id="fp-grade">'+gradeOptions(g0)+'</select></div>' +
+      '<div class="kap-fp-field"><label>Current years of service</label>' +
+        '<div class="kap-fp-step"><button type="button" class="kap-step" id="fp-yos-minus" aria-label="Decrease">−</button>' +
+        '<input id="fp-yos" inputmode="numeric" value="'+y0+'">' +
+        '<button type="button" class="kap-step" id="fp-yos-plus" aria-label="Increase">+</button></div></div>' +
+      '</div>' +
+      '<div style="margin-top:16px"><label style="display:block;font-size:.83rem;font-weight:500;color:#374151;margin-bottom:6px">How far into the future?</label>' +
+      '<div class="kap-fp-chips">' + HORIZONS.map(function(hz){
+        return '<button type="button" class="kap-chip'+(S.horizon===hz?' on':'')+'" data-fp-hz="'+hz+'">'+hz+' year'+(hz>1?'s':'')+'</button>'; }).join('') +
+      '<button type="button" class="kap-chip'+(S.horizon==='custom'?' on':'')+'" data-fp-hz="custom">Custom</button>' +
+      (S.horizon==='custom' ? '<input id="fp-custyrs" inputmode="numeric" value="'+(S.customYears||5)+'" style="width:70px;padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit"> years' : '') +
+      '</div></div>' +
+      '<div style="margin-top:16px"><label style="display:block;font-size:.83rem;font-weight:500;color:#374151;margin-bottom:6px">Projection method — the promotion assumption is yours to choose</label>' +
+      '<div class="kap-fp-chips">' +
+      '<button type="button" class="kap-chip'+(S.method==='stay'?' on':'')+'" data-fp-m="stay">Stay at current grade</button>' +
+      '<button type="button" class="kap-chip'+(S.method==='prog'?' on':'')+'" data-fp-m="prog">Estimated career progression</button>' +
+      '<button type="button" class="kap-chip'+(S.method==='custom'?' on':'')+'" data-fp-m="custom">Choose future grade</button>' +
+      (S.method==='custom' ? '<select id="fp-custgrade" style="padding:8px;border:1px solid var(--line);border-radius:6px;font:inherit">'+gradeOptions(S.customGrade||g0)+'</select>' : '') +
+      '</div>' +
+      (S.method==='prog' ? '<p class="kap-fp-note" style="margin-top:8px">Uses typical time-in-service promotion points for planning purposes. Actual promotions, timing, and compensation vary by branch, career field, and performance.</p>' : '') +
+      '</div></div>';
+
+    if (p0 && pF){
+      h += '<div class="kap-fp-card"><h3>Current vs. Projected</h3><div class="kap-fp-stats">' +
+        '<div class="kap-fp-stat"><div class="n">'+usd(p0)+'<span style="font-size:.8rem">/mo</span></div><div class="l">Current base pay (2026 table)</div><div class="s">'+g0+' · '+y0+' yrs of service</div></div>' +
+        '<div class="kap-fp-stat"><div class="n">'+usd(pF)+'<span style="font-size:.8rem">/mo</span></div><div class="l">Projected base pay — in '+yrs+' year'+(yrs>1?'s':'')+'</div><div class="s">'+gF+' · '+yF+' yrs of service'+(S.method==='prog'&&gF!==g0?' · assumes typical progression':'')+'</div></div>' +
+        '<div class="kap-fp-stat gold"><div class="n">'+(diff>=0?'+':'−')+usd(Math.abs(diff))+'<span style="font-size:.8rem">/mo</span></div><div class="l">Projected difference</div><div class="s">'+(diff>=0?'+':'−')+usd(Math.abs(diff)*12)+'/year</div></div>' +
+        '</div>' +
+        '<p class="kap-fp-note" style="margin-top:12px">Projections apply today\'s 2026 pay table to your future grade and years of service. Annual military pay raises are <b>not</b> included, so future nominal pay will likely be higher than shown.</p></div>';
+
+      /* trajectory ladder */
+      var steps = [0].concat(HORIZONS.filter(function(x){ return x!==0; }));
+      if (steps.indexOf(yrs)===-1) steps.push(yrs);
+      steps.sort(function(a,b){ return a-b; });
+      h += '<div class="kap-fp-card"><h3>Your Projected Trajectory</h3>' +
+        '<div class="kap-fp-ladder">' + steps.map(function(t){
+          var g = t===0 ? g0 : futureGrade(t), y = Math.min(40, y0+t), pay = PD.basePay(g, y);
+          return '<div class="kap-fp-rung'+(t===0?' now':'')+'"><span class="yr">'+(t===0?'NOW ('+year0+')':'+'+t+' YRS ('+(year0+t)+')')+'</span>' +
+            '<span class="gr">'+g+'</span><span style="font-size:.78rem;color:var(--muted)">'+y+' yrs svc</span>' +
+            '<span class="pay">'+(pay?usd(pay)+'/mo':'—')+'</span></div>';
+        }).join('') + '</div>' +
+        '<p class="kap-fp-note" style="margin-top:10px">'+(S.method==='stay'?'Held at '+g0+' per your selection.':S.method==='custom'?'Shows '+g0+' until your chosen horizon, then your selected future grade.':'Grade steps follow typical time-in-service points — actual timing varies.')+'</p></div>';
+
+      /* scenario comparison at the chosen horizon */
+      var track = PD.trackFor(g0), idx = -1;
+      for (var ti=0;ti<track.length;ti++) if (track[ti][0]===g0) idx = ti;
+      var nextGrade = (idx>-1 && idx<track.length-1) ? track[idx+1][0] : null;
+      var scen = [ ['Stay at current grade', g0, PD.basePay(g0, yF)] ];
+      if (nextGrade) scen.push(['Promote to next grade', nextGrade, PD.basePay(nextGrade, yF)]);
+      var progG = PD.progressGrade(g0, yrs);
+      if (progG!==g0 && progG!==nextGrade) scen.push(['Typical progression', progG, PD.basePay(progG, yF)]);
+      if (S.method==='custom' && S.customGrade && S.customGrade!==g0 && S.customGrade!==nextGrade && S.customGrade!==progG)
+        scen.push(['Your selected grade', S.customGrade, PD.basePay(S.customGrade, yF)]);
+      h += '<div class="kap-fp-card"><h3>Scenarios — In '+yrs+' Year'+(yrs>1?'s':'')+' ('+yF+' Yrs Of Service)</h3><table>' +
+        '<tr><th>Scenario</th><th>Grade</th><th class="num">Projected monthly</th><th class="num kap-fp-annual">Projected annual</th></tr>' +
+        scen.map(function(sc){ return '<tr><td>'+sc[0]+'</td><td><b>'+sc[1]+'</b></td><td class="num">'+(sc[2]?usd(sc[2]):'—')+'</td><td class="num kap-fp-annual">'+(sc[2]?usd(sc[2]*12):'—')+'</td></tr>'; }).join('') +
+        '</table><p class="kap-fp-note" style="margin-top:10px">Base pay only. Approvals, promotion boards, and high-year-tenure rules are outside any calculator.</p></div>';
+
+      /* beyond base pay — only what the data supports */
+      h += '<div class="kap-fp-card"><h3>Beyond Base Pay</h3><table>' +
+        '<tr><td>BAS — '+(isOff(gF)?'officer':'enlisted')+' rate <span class="kap-fp-note">(2026 rate held constant)</span></td><td class="num">'+(PD.bas?usd(isOff(gF)?PD.bas.officer:PD.bas.enlisted)+'/mo':'data unavailable')+'</td></tr>' +
+        '<tr><td>BAH <span class="kap-fp-note">— depends on future duty station, grade, and dependents; not projected. Model today\'s in the <a href="#/pay" style="color:var(--gold)">Pay calculator</a></span></td><td class="num">—</td></tr>' +
+        '<tr><td>Special &amp; incentive pays <span class="kap-fp-note">— career-field specific; not projected</span></td><td class="num">—</td></tr>' +
+        '</table></div>';
+
+      /* milestones + separation planning */
+      var toRet = 20 - y0;
+      var nextTyp = '';
+      if (nextGrade && idx>-1){
+        var yearsToTyp = track[idx+1][1] - track[idx][1];
+        nextTyp = '<tr><td>Next grade ('+nextGrade+') — typical time-in-service point</td><td class="num">'+(yearsToTyp>0?'~'+yearsToTyp+' yr'+(yearsToTyp>1?'s':''):'—')+'</td></tr>';
+      }
+      h += '<div class="kap-fp-card"><h3>Career Milestones</h3><table>' +
+        (toRet>0 ? '<tr><td>20-year retirement eligibility <span class="kap-fp-note">(estimated from your years of service)</span></td><td class="num">in ~'+toRet+' yrs ('+(year0+toRet)+')</td></tr>'
+                 : '<tr><td>20-year retirement eligibility</td><td class="num">reached ✓</td></tr>') +
+        nextTyp +
+        '</table>' +
+        '<details style="margin-top:12px"><summary style="cursor:pointer;font-size:.85rem;font-weight:600">Planning to separate? Enter a date for a countdown + checklist</summary>' +
+        '<div style="margin-top:10px" class="kap-fp-field"><label>Planned separation date</label><input type="date" id="fp-sep" value="'+(S.sepDate||'')+'" style="max-width:220px"></div>' +
+        (S.sepDate ? (function(){
+          var d = new Date(S.sepDate+'T12:00:00'); if (isNaN(d)) return '';
+          var mo = Math.max(0, Math.round((d - new Date())/2629800000));
+          return '<p style="font-size:.9rem;margin:10px 0 6px"><b>'+mo+' month'+(mo===1?'':'s')+' remaining.</b> Financial transition checklist:</p>' +
+            '<ul style="font-size:.85rem;color:var(--muted);margin:0;padding-left:20px;line-height:1.7">'+
+            '<li>Build 3–6 months of civilian-cost expenses (see <a href="#/budget" style="color:var(--gold)">Budget</a>)</li>'+
+            '<li>Review TSP: contribution options end with active pay (see <a href="#/tsp" style="color:var(--gold)">TSP / BRS</a>)</li>'+
+            '<li>Compare civilian offers against your full military compensation (see <a href="#/civilian-pay" style="color:var(--gold)">Civilian Pay</a>)</li>'+
+            '<li>Document every medical condition before you leave (see <a href="#/va-disability" style="color:var(--gold)">VA Disability</a>)</li>'+
+            '<li>Plan healthcare transition (TAMP/VA/employer coverage)</li>'+
+            '<li>Decide housing: VA loan eligibility continues after separation (see <a href="#/rent-vs-buy" style="color:var(--gold)">Rent vs. Buy</a>)</li></ul>';
+        })() : '') +
+        '</details></div>';
+    } else {
+      h += '<div class="kap-fp-card"><p style="font-size:.9rem">No pay-table entry for that grade / years-of-service combination — adjust the inputs above.</p></div>';
+    }
+    h += '<p class="kap-fp-note" style="margin:2px 4px">Military pay tables, promotions, allowances, and individual circumstances change. These are base-pay projections for planning purposes only — verify current compensation through official military resources (DFAS, your finance office). Not financial advice.</p>';
+    host.innerHTML = h;
+    wire(host);
+  }
+
+  function wire(host){
+    var q = function(id){ return host.querySelector(id); };
+    q('#fp-grade').onchange = function(){ S.grade = this.value; S.fromPay = false; save(S); render(); };
+    var yosI = q('#fp-yos');
+    function setYos(v){ if (!isFinite(v)) v = 0; S.yos = Math.max(0, Math.min(40, Math.round(v))); save(S); render(); }
+    yosI.onchange = function(){ setYos(parseFloat(this.value)); };
+    yosI.onkeydown = function(e){
+      if (e.key==='ArrowUp'){ e.preventDefault(); setYos((+S.yos||0)+1); }
+      if (e.key==='ArrowDown'){ e.preventDefault(); setYos((+S.yos||0)-1); }
+      if (e.key==='Enter'){ e.preventDefault(); setYos(parseFloat(this.value)); }
+    };
+    q('#fp-yos-minus').onclick = function(){ setYos((+S.yos||0)-1); };
+    q('#fp-yos-plus').onclick = function(){ setYos((+S.yos||0)+1); };
+    host.querySelectorAll('[data-fp-hz]').forEach(function(b){
+      b.onclick = function(){ S.horizon = b.dataset.fpHz==='custom' ? 'custom' : +b.dataset.fpHz; save(S); render(); };
+    });
+    var cy = q('#fp-custyrs'); if (cy) cy.onchange = function(){ S.customYears = Math.max(1, Math.min(30, Math.round(+this.value||5))); save(S); render(); };
+    host.querySelectorAll('[data-fp-m]').forEach(function(b){
+      b.onclick = function(){ S.method = b.dataset.fpM; if (S.method==='custom' && !S.customGrade) S.customGrade = S.grade; save(S); render(); };
+    });
+    var cg = q('#fp-custgrade'); if (cg) cg.onchange = function(){ S.customGrade = this.value; save(S); render(); };
+    var sep = q('#fp-sep'); if (sep) sep.onchange = function(){ S.sepDate = this.value; save(S); render(); };
+  }
+
+  window.addEventListener('hashchange', function(){ setTimeout(render, 60); });
+  document.addEventListener('kap-fp-change', function(){ setTimeout(render, 30); });
+  /* any '#/future-pay' link anywhere (e.g. the Summary's career card) opens
+     the view via the flag — the app router would swallow the bare hash */
+  document.addEventListener('click', function(e){
+    var a = e.target.closest && e.target.closest('a[href="#/future-pay"]');
+    if (a){ e.preventDefault(); window.__kapFpOn = true; document.dispatchEvent(new CustomEvent('kap-fp-change')); }
+  });
+  new MutationObserver(function(){ if (!document.getElementById('kap-fp-host')) render(); })
     .observe(document.getElementById('root'), {childList:true, subtree:true});
   render();
 })();
@@ -570,8 +987,13 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
 (function(){
   var last = 0;
   function report(){
-    var h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
-    if (Math.abs(h-last) > 4){ last = h; try{ parent.postMessage({kapToolkitHeight:h}, '*'); }catch(e){} }
+    /* measure CONTENT height (bottom edge of #root), never the viewport:
+       documentElement.scrollHeight is floored at the iframe's own height,
+       which would ratchet the frame — it could grow but never shrink. */
+    var r = document.getElementById('root'), h;
+    if (r){ h = Math.ceil(r.getBoundingClientRect().bottom + (window.scrollY||0)) + 8; }
+    else { h = document.body.offsetHeight; }
+    if (h > 200 && Math.abs(h-last) > 4){ last = h; try{ parent.postMessage({kapToolkitHeight:h}, '*'); }catch(e){} }
   }
   try{ new ResizeObserver(report).observe(document.body); }catch(e){}
   new MutationObserver(report).observe(document.getElementById('root'), {childList:true, subtree:true});
@@ -654,6 +1076,20 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
     if (w) s.retire = { pension:+w.militaryPensionMonthly, va:+w.vaDisabilityMonthly, other:+w.otherIncomeMonthly };
     var r = store('mft.rent-vs-buy.v2');
     if (r) s.housing = { price:+r.homePrice, va: !!r.usingVaLoan, rent:+r.monthlyRent, debts:+(r.monthlyDebts||0) };
+    /* career projection: Future Pay inputs (or Pay entries as fallback) through
+       the central KapPayData table — same source as the Future Pay tool */
+    try {
+      var pd = window.KapPayData, fp = store('kap.futurepay.v1');
+      var cg = (fp && fp.grade) || (pay && pay.grade), cy = fp && fp.yos !== undefined ? +fp.yos : (pay && +pay.yearsOfService);
+      if (pd && cg && cy >= 0 && isFinite(cy)){
+        var meth = (fp && fp.method) || 'prog';
+        var gAt = function(n){ return meth==='stay' ? cg : (meth==='custom' && fp && fp.customGrade ? fp.customGrade : pd.progressGrade(cg, n)); };
+        var now = pd.basePay(cg, cy);
+        if (now) s.career = { grade:cg, yos:cy, now:now, method:meth,
+          g5:gAt(5), in5:pd.basePay(gAt(5), Math.min(40,cy+5)),
+          g10:gAt(10), in10:pd.basePay(gAt(10), Math.min(40,cy+10)) };
+      }
+    } catch(e){}
     return s;
   }
 
@@ -800,6 +1236,15 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
       html += '<div class="kap-rep-card"><div class="kick">FINANCIAL SNAPSHOT — WHAT YOU TOLD US</div><div class="kap-snap">' +
         rows.map(function(r){ return '<div><span>'+r[0]+'</span><b>'+r[1]+'</b></div>'; }).join('') + '</div></div>';
     }
+    if (s.career){
+      html += '<div class="kap-rep-card"><div class="kick">CAREER PROJECTION — PROJECTED, NOT GUARANTEED</div><div class="kap-snap">' +
+        '<div><span>Current base pay ('+s.career.grade+' · '+s.career.yos+' yrs)</span><b>'+usd(s.career.now)+'/mo</b></div>' +
+        (s.career.in5?'<div><span>5-yr projected ('+s.career.g5+')</span><b>'+usd(s.career.in5)+'/mo</b></div>':'') +
+        (s.career.in10?'<div><span>10-yr projected ('+s.career.g10+')</span><b>'+usd(s.career.in10)+'/mo</b></div>':'') +
+        '</div><p style="font-size:.72rem;color:var(--muted);margin:10px 0 0">'+
+        (s.career.method==='stay'?'Held at your current grade per your Future Pay setting.':s.career.method==='custom'?'Uses the future grade you selected in Future Pay.':'Assumes typical career progression — actual promotions and timing vary.')+
+        ' Today\'s 2026 pay table; annual raises not included. Tune the assumptions in <a href="#/future-pay" style="color:var(--gold)">Future Pay</a>.</p></div>';
+    }
     if (sts.length){
       html += '<div class="kap-rep-card"><div class="kick">WHAT YOU’RE DOING WELL</div>' +
         sts.map(function(t){ return '<div class="kap-li">'+t+'</div>'; }).join('') + '</div>';
@@ -875,6 +1320,10 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
     if (s.deploy && s.deploy.czMonths>0) det += '<h3 style="font-size:10.5pt">Deployment</h3><table><tr><td>Combat-zone months</td><td>'+s.deploy.czMonths+'</td></tr><tr><td>SDP monthly deposit</td><td>'+usd(s.deploy.sdpMonthly)+'</td></tr></table>';
     if (s.va) det += '<h3 style="font-size:10.5pt">VA Disability</h3><table><tr><td>Conditions entered</td><td>'+s.va.count+'</td></tr></table>';
     if (s.retire) det += '<h3 style="font-size:10.5pt">Retirement Income</h3><table><tr><td>Pension</td><td>'+usd(s.retire.pension)+'/mo</td></tr><tr><td>VA disability</td><td>'+usd(s.retire.va)+'/mo</td></tr><tr><td>Other</td><td>'+usd(s.retire.other)+'/mo</td></tr></table>';
+    if (s.career) det += '<h3 style="font-size:10.5pt">Career Projection (projected — not guaranteed)</h3><table><tr><td>Current base pay ('+s.career.grade+', '+s.career.yos+' yrs)</td><td>'+usd(s.career.now)+'/mo</td></tr>'+
+      (s.career.in5?'<tr><td>5-year projected base pay ('+s.career.g5+')</td><td>'+usd(s.career.in5)+'/mo</td></tr>':'')+
+      (s.career.in10?'<tr><td>10-year projected base pay ('+s.career.g10+')</td><td>'+usd(s.career.in10)+'/mo</td></tr>':'')+
+      '</table><p style="font-size:8.5pt;color:#5c6a7d;margin:4px 0 0">'+(s.career.method==='stay'?'Held at current grade per your setting.':s.career.method==='custom'?'Uses your selected future grade.':'Assumes typical career progression — actual promotions and timing vary.')+' Today\'s 2026 pay table; annual raises not included.</p>';
     if (det) h += '<h2>Detailed Results</h2>' + det;
     h += '<div class="ft">Estimates only — not financial, tax, or investment advice, and not affiliated with the DoD, DFAS, or VA. Rates effective 2026-01-01. Generated by the Captain Kap Military Financial Readiness Toolkit.</div>';
     var w = window.open('', '_blank');
