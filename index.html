@@ -611,7 +611,7 @@ footer .flogo{width:64px;height:64px;border-radius:50%;object-fit:cover;margin:0
              disabled in its integration stylesheet so height can SHRINK
              when switching from a tall tab to a short one — no blank band). -->
         <iframe id="tk-iframe" src="toolkit.html" title="Military Financial Readiness Toolkit" loading="lazy"
-                scrolling="no" style="width:100%;height:1300px;border:0;display:block;background:transparent"></iframe>
+                style="width:100%;height:1300px;border:0;display:block;background:transparent"></iframe>
       </div>
     </div>
   </section>
@@ -1548,39 +1548,30 @@ const CCO = {
   benefits(c){ return this.bensFor(c).filter(b=>b.v>0); }
 };
 
-/* Toolkit iframe auto-height. Primary channel: the toolkit posts its
-   content height via postMessage (kap-height script inside it), which
-   works in EVERY embedding context — same-origin, cross-origin previews,
-   anywhere. This is what prevents content (e.g. Credit Cards) from being
-   clipped at the frame's initial height. Same-origin direct reads remain
-   as a fast-path fallback. */
+/* Toolkit iframe auto-height. Single channel: the toolkit measures its own
+   CONTENT height and posts it via postMessage (kap-height script inside it) —
+   works in every embedding context, and the frame both grows AND shrinks.
+   NOTE: no direct contentDocument.scrollHeight reads here — inside an iframe
+   documentElement.scrollHeight is floored at the frame's own height, so any
+   code path using it ratchets the frame taller forever (the old blank-band /
+   clipping bugs). The iframe intentionally has NO scrolling="no": when the
+   height is right there is no inner scrollbar anyway, and if a measurement
+   ever falls short the content stays reachable instead of being clipped. */
 (function(){
-  function setH(h){
-    const f = $('tk-iframe');
-    if (f && h > 400 && Math.abs(h - f.offsetHeight) > 8) f.style.height = h + 'px';
-  }
-  window.addEventListener('message', e => {
-    if (e.data && typeof e.data.kapToolkitHeight === 'number') setH(e.data.kapToolkitHeight);
-  });
-  function fit(){
-    const f = $('tk-iframe');
-    if (!f) return;
-    try {
-      const d = f.contentDocument;
-      if (d && d.body) setH(Math.max(d.documentElement.scrollHeight, d.body.scrollHeight));
-    } catch(e){ /* cross-origin: postMessage channel handles it */ }
-  }
-  setInterval(fit, 900);
-  const f = $('tk-iframe'); if (f) f.addEventListener('load', () => setTimeout(fit, 300));
-  /* last-resort: if no height signal arrives at all (ancient browser,
-     blocked messaging), un-freeze the frame so nothing is ever clipped */
   let gotSignal = false;
-  window.addEventListener('message', e => { if (e.data && e.data.kapToolkitHeight) gotSignal = true; });
+  window.addEventListener('message', e => {
+    if (e.data && typeof e.data.kapToolkitHeight === 'number'){
+      gotSignal = true;
+      const f = $('tk-iframe');
+      if (f && e.data.kapToolkitHeight > 400 && Math.abs(e.data.kapToolkitHeight - f.offsetHeight) > 8)
+        f.style.height = e.data.kapToolkitHeight + 'px';
+    }
+  });
+  /* last-resort: if no height signal arrives at all (blocked messaging),
+     give the frame room — its own scrollbar keeps everything reachable */
   setTimeout(() => {
     const fr = $('tk-iframe');
-    if (!fr || gotSignal) return;
-    try { if (fr.contentDocument) return; } catch(e){}
-    fr.removeAttribute('scrolling'); fr.style.height = '1400px';
+    if (fr && !gotSignal) fr.style.height = '1400px';
   }, 6000);
 })();
 

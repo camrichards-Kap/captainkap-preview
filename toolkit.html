@@ -103,6 +103,14 @@
             use still paints edge to edge. ---- */
     html, body{ background:var(--paper); }
     .min-h-screen{ min-height:0 !important; }
+
+    /* ---- 10. No content behind invisible scrollbars. The app caps its one
+            long table (Where to Retire's 50-state comparison) at max-h-96
+            with an inner scrollbar — on trackpads the scrollbar is invisible
+            until touched, so the table reads as "cut off". Embedded pages
+            scroll naturally: let the container expand to its full content
+            instead. (Scoped to main; nothing else uses max-h-96 today.) ---- */
+    main .max-h-96{ max-height:none !important; }
     </style>
   </head>
   <body>
@@ -987,17 +995,21 @@ new MutationObserver(fix).observe(document.getElementById('root'),{childList:tru
 (function(){
   var last = 0;
   function report(){
-    /* measure CONTENT height (bottom edge of #root), never the viewport:
-       documentElement.scrollHeight is floored at the iframe's own height,
-       which would ratchet the frame — it could grow but never shrink. */
-    var r = document.getElementById('root'), h;
-    if (r){ h = Math.ceil(r.getBoundingClientRect().bottom + (window.scrollY||0)) + 8; }
-    else { h = document.body.offsetHeight; }
+    /* measure CONTENT height, never the viewport: documentElement.scrollHeight
+       is floored at the iframe's own height, which would ratchet the frame —
+       it could grow but never shrink. Take the max of the #root box and
+       body.scrollHeight (catches anything flowing outside root), plus a
+       small buffer so nothing ever lands exactly on the clip line. */
+    var r = document.getElementById('root'), h = 0;
+    if (r) h = Math.ceil(r.getBoundingClientRect().bottom + (window.scrollY||0));
+    h = Math.max(h, document.body.scrollHeight) + 16;
     if (h > 200 && Math.abs(h-last) > 4){ last = h; try{ parent.postMessage({kapToolkitHeight:h}, '*'); }catch(e){} }
   }
   try{ new ResizeObserver(report).observe(document.body); }catch(e){}
-  new MutationObserver(report).observe(document.getElementById('root'), {childList:true, subtree:true});
+  new MutationObserver(report).observe(document.getElementById('root'), {childList:true, subtree:true, attributes:true});
+  document.addEventListener('toggle', report, true);   /* <details> expanders grow instantly */
   window.addEventListener('load', report);
+  window.addEventListener('resize', report);           /* reflow at new widths */
   setInterval(report, 1200);
 })();
 </script>
