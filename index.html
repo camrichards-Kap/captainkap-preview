@@ -1445,7 +1445,7 @@ const CCO_STRATS = {
 const CCO_FEATURES = ['Personalized card path with reasoning, phases & timing','Current vs. typical welcome offers ("apply now" vs. "wait") — verified '+CCO_VER.checked,
   'My Cards with auto-filled card profiles','Benefits checklist organized by month / quarter / year — never miss a credit','Welcome offers auto-tracked from the database, with pace & status',
   'Points Strategy: transfer partners, verified transfer bonuses & redemption math','Portfolio analysis: strengths, gaps, utilization','Ultimate Collection: what’s worth it FOR YOU',
-  'Printable "My Credit Card Plan" + Excel workbook'];
+  'The 19-tab Credit Card Strategy Workbook (Excel) + printable "My Credit Card Plan"'];
 
 /* ============================================================
    POINTS STRATEGY DATA — verified 8/10/26.
@@ -2086,10 +2086,33 @@ function ccoView(v){
         '<span class="cco-chip '+(net>=0?'keep':'rev')+'">'+(net>=0?'KEEP':'REVIEW')+'</span></div></div>'; }).join('');
   }
   if (v==='wb'){
-    return '<div class="tool"><h3>The Strategy Workbook</h3>' +
-      '<p style="font-size:.88rem">Ten formatted tabs — MY CARDS, BENEFITS TRACKER, CARD DATABASE ('+CCO_DB.length+' cards with current-vs-typical offers as of '+CCO_META.verified+'), CARD COMPARISON, MY SPENDING, WELCOME BONUSES, CARD ROADMAP, ANNUAL FEE REVIEW, DASHBOARD — with dropdowns, live formulas, and KEEP/REVIEW signals.</p>' +
-      '<p style="font-size:.8rem;color:var(--muted)">Website = discovery, path, and strategy. Workbook = your long-term personal records. Google Sheets: File → Import.</p>' +
-      '<a class="btn gold" href="cco-workbook.xlsx" download>⬇ Download The Workbook</a></div>';
+    /* WB_URL is the ONE swap point when the real domain lands. Absolute so the
+       download works from every context this page renders in (the temp Pages
+       domain, previews, embeds) — a relative href breaks outside the origin. */
+    var WB_URL = 'https://camrichards-kap.github.io/captainkap-preview/Credit%20Card%20Strategy%20Workbook.xlsx';
+    var secs = [['1','Snapshot','income, expenses, debt, savings — with surplus & emergency-fund math'],
+      ['2','Credit Profile','utilization, account age, inquiries — and how to improve each'],
+      ['3','Card Audit','every card: limits, balances, fees, keep / downgrade / cancel'],
+      ['4','Spending Analysis','where your money goes, which categories to optimize'],
+      ['5','Rewards Strategy','cash back vs. points vs. miles — a 5-question fit quiz'],
+      ['6','Portfolio Builder','roles, overlap check, net value per card'],
+      ['7','Bonus Tracker','pace math, deadlines — with hard responsible-spending rules'],
+      ['8','Application Strategy','readiness check, next-card shortlist, velocity rules'],
+      ['9','Annual Fee Analysis','value − fee = KEEP / REVIEW, card by card'],
+      ['10','Wallet Strategy','which card for which purchase — screenshot it'],
+      ['11','Points Valuation','cents-per-point calculator + cash-vs-transfer rules'],
+      ['12','Travel Strategy','balances, upcoming trips, the points gap'],
+      ['13','12-Month Planner','a month-by-month strategy calendar'],
+      ['14','Long-Term Goals','1 / 2 / 3-year credit, rewards & purchase goals']];
+    return '<div class="tool"><h3>📗 The Credit Card Strategy Workbook</h3>' +
+      '<p style="font-size:.88rem">Your complete companion in Excel: a guided <b>19-tab strategy system</b> you work through from cover page to a signed, one-page personal strategy. Live calculators, dropdowns, example rows, and a '+CCO_DB.length+'-card database (offers verified '+CCO_META.verified+').</p>' +
+      '<div class="two" style="gap:4px 24px;font-size:.8rem;grid-template-columns:1fr 1fr">' +
+      secs.map(function(s){ return '<div style="padding:3px 0;border-bottom:1px dashed var(--line)"><b style="color:var(--gold)">'+s[0]+'.</b> <b>'+s[1]+'</b> <span style="color:var(--muted)">— '+s[2]+'</span></div>'; }).join('') +
+      '<div style="padding:3px 0;border-bottom:1px dashed var(--line)"><b style="color:var(--gold)">+</b> <b>Rules & Safety</b> <span style="color:var(--muted)">— the responsible-credit non-negotiables</span></div>' +
+      '<div style="padding:3px 0;border-bottom:1px dashed var(--line)"><b style="color:var(--gold)">+</b> <b>My Strategy</b> <span style="color:var(--muted)">— the final consolidated one-pager</span></div>' +
+      '</div>' +
+      '<p style="font-size:.8rem;color:var(--muted);margin-top:12px">Excel file (.xlsx, ~55 KB) — also works in Google Sheets (File → Import) and LibreOffice. Blue cells are yours to fill; black cells calculate live. Website = discovery and live strategy · workbook = your deep-dive and permanent records.</p>' +
+      '<a class="btn gold" href="'+WB_URL+'" download="Credit Card Strategy Workbook.xlsx" target="_blank" rel="noopener">⬇ Download The Workbook (.xlsx)</a></div>';
   }
   return '';
 }
