@@ -45,7 +45,10 @@
   --reveal-ease: cubic-bezier(.22,.61,.36,1);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
+html{scroll-behavior:smooth;overflow-x:clip}
+/* ^ overflow-x guard: reveal animations translate elements horizontally
+   (.from-right) before they fire — clip stops that transient offset from
+   ever creating a horizontal scrollbar, without breaking sticky/fixed. */
 body{font-family:'Inter',system-ui,sans-serif;color:var(--ink);background:#fff;line-height:1.65;-webkit-font-smoothing:antialiased}
 h1,h2,h3,h4{font-family:'Oswald',sans-serif;text-transform:uppercase;letter-spacing:.5px;line-height:1.08}
 a{text-decoration:none;color:inherit}
